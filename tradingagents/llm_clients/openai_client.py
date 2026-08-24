@@ -68,6 +68,22 @@ class LocalCompatibleChatOpenAI(NormalizedChatOpenAI):
         return super().with_structured_output(schema, method=method, **kwargs)
 
 
+class OllamaChatOpenAI(NormalizedChatOpenAI):
+    """Ollama client tuned for repeated local agent and tool calls.
+
+    Hybrid-thinking models such as Qwen3 otherwise spend most of the local
+    context window on reasoning for every analyst round. Ollama accepts the
+    ``think`` switch in ``extra_body``; disabling it leaves room for tool calls
+    and complete final reports.
+    """
+
+    def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        extra_body = payload.setdefault("extra_body", {})
+        extra_body.setdefault("think", False)
+        return payload
+
+
 def _input_to_messages(input_: Any) -> list:
     """Normalise a langchain LLM input to a list of message objects.
 
@@ -225,7 +241,7 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
-                               key_optional=True, placeholder_key="ollama"),
+                               key_optional=True, placeholder_key="ollama", chat_class=OllamaChatOpenAI),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
     "openai_compatible": ProviderSpec(
         require_base_url=True, key_optional=True, chat_class=LocalCompatibleChatOpenAI

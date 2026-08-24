@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 
 import pytest
+from langchain_core.messages import HumanMessage
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -85,6 +86,17 @@ def test_explicit_base_url_overrides_env(monkeypatch):
     llm = client.get_llm()
     assert "explicit" in str(llm.openai_api_base)
     assert "env-set" not in str(llm.openai_api_base)
+
+
+def test_ollama_disables_hybrid_thinking_by_default(monkeypatch):
+    """Agent calls should preserve context for tools and final reports."""
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    mod = _reload_client()
+    llm = mod.OpenAIClient(model="qwen3:8b", provider="ollama").get_llm()
+
+    assert isinstance(llm, mod.OllamaChatOpenAI)
+    payload = llm._get_request_payload([HumanMessage(content="test")])
+    assert payload["extra_body"]["think"] is False
 
 
 # ---- cli.utils side: select_llm_provider dropdown -------------------------
