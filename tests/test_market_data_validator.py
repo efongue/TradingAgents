@@ -62,6 +62,41 @@ class TestVerifiedSnapshot:
         close_rows = [ln for ln in snap.splitlines() if ln.startswith("| 2026-")]
         assert 0 < len(close_rows) <= 30
 
+    def test_reports_real_progress_without_changing_snapshot(self, monkeypatch):
+        monkeypatch.setattr(validator, "load_ohlcv", lambda s, d: _sample_ohlcv())
+        events = []
+
+        snap = validator.build_verified_market_snapshot(
+            "COF",
+            "2026-05-20",
+            progress=lambda step_id, details: events.append((step_id, details)),
+        )
+
+        assert "Verified market data snapshot for COF" in snap
+        assert [step_id for step_id, _ in events] == [
+            "ohlcv_loaded",
+            "date_cutoff_verified",
+            "freshness_verified",
+            "recent_closes_selected",
+            "indicators_calculated",
+            "latest_price_verified",
+        ]
+        assert events[0][1]["rows"] == len(_sample_ohlcv())
+        assert events[3][1]["count"] == 30
+        assert events[4][1]["total"] == len(validator.DEFAULT_SNAPSHOT_INDICATORS)
+        assert events[5][1]["close"] == _sample_ohlcv().iloc[-1]["Close"]
+
+    def test_progress_callback_failure_does_not_change_verification(self, monkeypatch):
+        monkeypatch.setattr(validator, "load_ohlcv", lambda s, d: _sample_ohlcv())
+
+        snap = validator.build_verified_market_snapshot(
+            "COF",
+            "2026-05-20",
+            progress=lambda *_: (_ for _ in ()).throw(RuntimeError("UI unavailable")),
+        )
+
+        assert "Latest trading row used: 2026-05-20" in snap
+
 
 @pytest.mark.unit
 class TestTool:

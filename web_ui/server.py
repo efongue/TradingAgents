@@ -7,6 +7,7 @@ a library. The original CLI and framework files are not modified.
 
 from __future__ import annotations
 
+import ast
 import json
 import mimetypes
 import os
@@ -33,6 +34,7 @@ REPORTS_DIR = DATA_DIR / "reports"
 sys.path.insert(0, str(ROOT))
 
 from dotenv import load_dotenv  # noqa: E402
+from openai import DEFAULT_MAX_RETRIES  # noqa: E402
 
 load_dotenv(ROOT / ".env")
 
@@ -41,14 +43,70 @@ from tradingagents.dataflows.market_data_validator import (  # noqa: E402
     build_verified_market_snapshot,
 )
 from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
+from tradingagents.graph.analyst_execution import ANALYST_NODE_SPECS  # noqa: E402
+from tradingagents.graph.checkpointer import checkpoint_step  # noqa: E402
 from tradingagents.graph.trading_graph import TradingAgentsGraph  # noqa: E402
 
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("TRADINGAGENTS_WEB_PORT", "8787"))
-OLLAMA_API = "http://127.0.0.1:11434"
-MODEL = "qwen3:8b"
-ALLOWED_ANALYSTS = {"market", "news", "social", "fundamentals"}
+OLLAMA_API = os.environ.get("OLLAMA_API", "http://127.0.0.1:11434").rstrip("/")
+MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:8b")
+WEB_TEMPERATURE = float(os.environ.get("TRADINGAGENTS_TEMPERATURE", "0.1"))
 OUTPUT_TOKEN_BUDGETS = {1: 600, 2: 1000, 3: 1600}
+
+ANALYST_PRESENTATION = {
+    "market": {
+        "name": "Marché",
+        "description": "Prix, tendances et indicateurs techniques.",
+    },
+    "social": {
+        "name": "Sentiment du marché",
+        "description": "Perception des investisseurs et réseaux spécialisés.",
+    },
+    "news": {
+        "name": "Actualités",
+        "description": "Événements récents et contexte macroéconomique.",
+    },
+    "fundamentals": {
+        "name": "Fondamentaux",
+        "description": "Résultats, bilan, revenus et valorisation.",
+    },
+}
+ALLOWED_ANALYSTS = frozenset(ANALYST_NODE_SPECS)
+
+TOOL_CATEGORIES = {
+    "get_stock_data": "core_stock_apis",
+    "get_indicators": "technical_indicators",
+    "get_fundamentals": "fundamental_data",
+    "get_balance_sheet": "fundamental_data",
+    "get_cashflow": "fundamental_data",
+    "get_income_statement": "fundamental_data",
+    "get_news": "news_data",
+    "get_global_news": "news_data",
+    "get_insider_transactions": "news_data",
+    "get_macro_indicators": "macro_data",
+    "get_prediction_markets": "prediction_markets",
+}
+TOOL_LABELS = {
+    "get_stock_data": "Cours OHLCV",
+    "get_indicators": "Indicateurs techniques",
+    "get_verified_market_snapshot": "Cours vérifié",
+    "get_fundamentals": "Données fondamentales",
+    "get_balance_sheet": "Bilan",
+    "get_cashflow": "Flux de trésorerie",
+    "get_income_statement": "Compte de résultat",
+    "get_news": "Actualités de l’entreprise",
+    "get_global_news": "Actualités macroéconomiques",
+    "get_insider_transactions": "Transactions d’initiés",
+    "get_macro_indicators": "Indicateurs macroéconomiques",
+    "get_prediction_markets": "Marchés de prévision",
+}
+VENDOR_LABELS = {
+    "yfinance": "Yahoo Finance",
+    "alpha_vantage": "Alpha Vantage",
+    "fred": "FRED",
+    "polymarket": "Polymarket",
+}
 
 JOBS: dict[str, dict] = {}
 LOCK = threading.RLock()
@@ -66,6 +124,45 @@ STAGE_DEFS = [
     ("portfolio", "Portefeuille", "Le gestionnaire consolide la décision finale."),
 ]
 
+DATA_STEP_DEFS = [
+    ("ohlcv_loaded", "Historique OHLCV", "Téléchargement ou lecture du cache Yahoo Finance."),
+    ("date_cutoff_verified", "Période de données", "Exclusion de toute séance après la date d’analyse."),
+    ("freshness_verified", "Fraîcheur de la dernière séance", "Rejet des données de plus de 10 jours."),
+    ("recent_closes_selected", "Fenêtre des clôtures", "Sélection des 30 dernières clôtures."),
+    ("indicators_calculated", "Indicateurs techniques", "Calcul EMA/SMA, RSI, Bollinger, MACD et ATR."),
+    ("latest_price_verified", "Dernier cours", "Validation du dernier cours exploitable."),
+]
+
+DEBATE_STEP_DEFS = [
+    ("bull", "Analyste haussier", "Construction du scénario favorable.", "bull"),
+    ("bear", "Analyste baissier", "Construction du scénario défavorable.", "bear"),
+    (
+        "research_manager",
+        "Arbitrage du responsable de recherche",
+        "Synthèse du débat et production du plan d’investissement.",
+        "research_manager",
+    ),
+]
+
+ANALYST_NODE_TO_KEY = {
+    spec.agent_node: key for key, spec in ANALYST_NODE_SPECS.items()
+}
+DEBATE_NODE_TO_KEY = {
+    "Bull Researcher": "bull",
+    "Bear Researcher": "bear",
+    "Research Manager": "research_manager",
+}
+GRAPH_NODE_STAGE_INDEX = {
+    **{node: 1 for node in ANALYST_NODE_TO_KEY},
+    **{node: 2 for node in DEBATE_NODE_TO_KEY},
+    "Trader": 3,
+    "Aggressive Analyst": 4,
+    "Conservative Analyst": 4,
+    "Neutral Analyst": 4,
+    "Portfolio Manager": 5,
+}
+LINKABLE_STAGE_REPORT_KEYS = frozenset({*ANALYST_NODE_SPECS, "bull", "bear"})
+
 
 def stages(active_index: int = -1, *, error: bool = False) -> list[dict]:
     values = []
@@ -80,11 +177,545 @@ def stages(active_index: int = -1, *, error: bool = False) -> list[dict]:
     return values
 
 
+def data_steps(active_index: int | None = None) -> list[dict]:
+    values = []
+    for index, (step_id, label, detail) in enumerate(DATA_STEP_DEFS):
+        if active_index is None:
+            status = "pending"
+        elif index < active_index:
+            status = "complete"
+        elif index == active_index:
+            status = "active"
+        else:
+            status = "pending"
+        values.append({"id": step_id, "label": label, "detail": detail, "status": status})
+    return values
+
+
+def report_url(job_id: str, report_key: str) -> str:
+    return f"/api/jobs/{job_id}/reports/{report_key}.md"
+
+
+def workflow_stage_steps(job_id: str, analysts: list[str] | tuple[str, ...]) -> dict[str, list[dict]]:
+    analyst_values = []
+    for analyst_key in analysts:
+        spec = ANALYST_NODE_SPECS.get(analyst_key)
+        if not spec:
+            continue
+        presentation = ANALYST_PRESENTATION.get(analyst_key, {})
+        label = presentation.get("name", spec.agent_node)
+        analyst_values.append({
+            "id": analyst_key,
+            "label": label,
+            "detail": f"{label} prépare son rapport Markdown.",
+            "status": "pending",
+            "report_key": analyst_key,
+            "report_url": None,
+        })
+    debate_values = [
+        {
+            "id": step_id,
+            "label": label,
+            "detail": detail,
+            "status": "pending",
+            "report_key": report_key,
+            "report_url": None,
+        }
+        for step_id, label, detail, report_key in DEBATE_STEP_DEFS
+    ]
+    return {"analysts": analyst_values, "debate": debate_values}
+
+
+def restore_stage_steps(
+    job_id: str,
+    analysts: list[str] | tuple[str, ...],
+    reports: dict,
+) -> dict[str, list[dict]]:
+    values = workflow_stage_steps(job_id, analysts)
+    for stage_values in values.values():
+        for step in stage_values:
+            report_key = step["report_key"]
+            if reports.get(report_key):
+                step["status"] = "complete"
+                if report_key in LINKABLE_STAGE_REPORT_KEYS:
+                    step["report_url"] = report_url(job_id, report_key)
+    return values
+
+
+def data_progress_detail(step_id: str, details: dict) -> tuple[str, str]:
+    if step_id == "ohlcv_loaded":
+        return f"{details.get('rows', 0)} séances chargées jusqu’au {details.get('latest_date', '—')}.", "complete"
+    if step_id == "date_cutoff_verified":
+        return f"Aucune séance postérieure au {details.get('analysis_date', '—')}.", "complete"
+    if step_id == "freshness_verified":
+        return f"Dernière séance validée : {details.get('latest_date', '—')}.", "complete"
+    if step_id == "recent_closes_selected":
+        return f"{details.get('count', 0)} clôtures retenues.", "complete"
+    if step_id == "indicators_calculated":
+        available = int(details.get("available", 0) or 0)
+        total = int(details.get("total", 0) or 0)
+        status = "complete" if total and available == total else "warning"
+        return f"{available}/{total} indicateurs calculés.", status
+    if step_id == "latest_price_verified":
+        close = details.get("close")
+        if close is None:
+            return "Dernier cours indisponible.", "warning"
+        return f"Dernier cours vérifié : {float(close):.2f}.", "complete"
+    return "Contrôle terminé.", "complete"
+
+
+def record_data_progress(job_id: str, step_id: str, details: dict) -> None:
+    step_ids = [definition[0] for definition in DATA_STEP_DEFS]
+    if step_id not in step_ids:
+        return
+    completed_index = step_ids.index(step_id)
+    detail, completed_status = data_progress_detail(step_id, details)
+    with LOCK:
+        current_steps = [dict(step) for step in JOBS[job_id].get("data_steps", data_steps(0))]
+        for index, step in enumerate(current_steps):
+            if index < completed_index and step["status"] in {"pending", "active"}:
+                step["status"] = "complete"
+            elif index == completed_index:
+                step.update(status=completed_status, detail=detail)
+            elif index == completed_index + 1:
+                step["status"] = "active"
+        JOBS[job_id].update(data_steps=current_steps, logs=[f"{current_steps[completed_index]['label']} : {detail}"])
+
+
+def fail_active_data_step(current_steps: list[dict], message: str) -> list[dict]:
+    failed = [dict(step) for step in current_steps]
+    active = next((step for step in failed if step.get("status") == "active"), None)
+    if active:
+        concise = " ".join(str(message).split())
+        if len(concise) > 240:
+            concise = f"{concise[:237].rstrip()}…"
+        active.update(status="error", detail=concise)
+    return failed
+
+
 def elapsed(started_at: float | None) -> str:
     if not started_at:
         return "00:00"
     seconds = max(0, int(time.time() - started_at))
     return f"{seconds // 60:02d}:{seconds % 60:02d}"
+
+
+def ollama_json(path: str, payload: dict | None = None, timeout: float = 3) -> dict:
+    body = json.dumps(payload).encode() if payload is not None else None
+    request = urllib.request.Request(
+        f"{OLLAMA_API}{path}",
+        data=body,
+        headers={"Content-Type": "application/json"} if body else {},
+        method="POST" if body else "GET",
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        parsed = json.loads(response.read())
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def positive_int(value) -> int | None:  # noqa: ANN001
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def context_from_model_details(details: dict) -> tuple[int | None, str | None, int | None]:
+    parameters = str(details.get("parameters") or "")
+    configured_match = re.search(r"(?m)^\s*num_ctx\s+(\d+)\s*$", parameters)
+    configured = positive_int(configured_match.group(1)) if configured_match else None
+    capacities = [
+        positive_int(value)
+        for key, value in (details.get("model_info") or {}).items()
+        if str(key).endswith(".context_length")
+    ]
+    capacity = max((value for value in capacities if value), default=None)
+    if configured:
+        return configured, "Paramètre num_ctx du modèle Ollama", capacity
+    return None, None, capacity
+
+
+def ollama_runtime_info() -> dict:
+    base = {
+        "online": False,
+        "models": [],
+        "endpoint": OLLAMA_API,
+        "openai_endpoint": f"{OLLAMA_API}/v1",
+        "active_model": MODEL,
+        "context_window_tokens": None,
+        "context_source": None,
+        "model_capacity_tokens": None,
+        "configuration": {
+            "temperature": WEB_TEMPERATURE,
+            "think_enabled": False,
+            "max_retries_per_call": DEFAULT_MAX_RETRIES,
+            "checkpoint_enabled": True,
+            "price_consistency_check": True,
+            "output_token_budgets": OUTPUT_TOKEN_BUDGETS,
+        },
+    }
+    try:
+        tags = ollama_json("/api/tags")
+    except (OSError, urllib.error.URLError, json.JSONDecodeError):
+        return base
+
+    models = []
+    for item in tags.get("models", []):
+        size = item.get("size") or 0
+        models.append({"name": item.get("name", "inconnu"), "size": f"{size / 1_000_000_000:.1f} Go"})
+    base.update({"online": True, "models": models})
+
+    try:
+        running = ollama_json("/api/ps", timeout=2).get("models", [])
+    except (OSError, urllib.error.URLError, json.JSONDecodeError):
+        running = []
+    active = next(
+        (
+            item for item in running
+            if item.get("name") == MODEL or item.get("model") == MODEL
+        ),
+        None,
+    )
+    if active:
+        runtime_context = positive_int(active.get("context_length"))
+        if runtime_context:
+            base["context_window_tokens"] = runtime_context
+            base["context_source"] = "Contexte du modèle actuellement chargé dans Ollama"
+
+    try:
+        details = ollama_json("/api/show", {"model": MODEL}, timeout=3)
+    except (OSError, urllib.error.URLError, json.JSONDecodeError):
+        details = {}
+    detected_context, detected_source, capacity = context_from_model_details(details)
+    base["model_capacity_tokens"] = capacity
+    if base["context_window_tokens"] is None and detected_context:
+        base["context_window_tokens"] = detected_context
+        base["context_source"] = detected_source
+    return base
+
+
+def analysis_limits(depth: int, analyst_count: int, runtime: dict | None = None) -> dict:
+    """Describe the model budget exposed to the local interface."""
+    output_budget = OUTPUT_TOKEN_BUDGETS[depth]
+    expected_calls = analyst_count * 2 + 9 + max(0, depth - 1) * 5
+    runtime = runtime or {}
+    context_window = positive_int(runtime.get("context_window_tokens"))
+    return {
+        "context_window_tokens": context_window,
+        "context_source": runtime.get("context_source"),
+        "model_capacity_tokens": positive_int(runtime.get("model_capacity_tokens")),
+        "max_output_tokens": output_budget,
+        "safe_prompt_tokens": max(0, context_window - output_budget) if context_window else None,
+        "expected_model_calls": expected_calls,
+        "last_prompt_estimated_tokens": None,
+        "estimated_request_tokens": None,
+        "usage_percent": None,
+        "state": "waiting",
+    }
+
+
+def web_analysis_config(depth: int) -> dict:
+    """Return the exact TradingAgents configuration used by the web runner."""
+    config = DEFAULT_CONFIG.copy()
+    config.update({
+        "llm_provider": "ollama",
+        "backend_url": f"{OLLAMA_API}/v1",
+        "quick_think_llm": MODEL,
+        "deep_think_llm": MODEL,
+        "max_debate_rounds": depth,
+        "max_risk_discuss_rounds": depth,
+        "output_language": "French",
+        "temperature": WEB_TEMPERATURE,
+        "checkpoint_enabled": True,
+        "results_dir": str(DATA_DIR / "runtime"),
+    })
+    return config
+
+
+def resolve_benchmark(ticker: str, config: dict) -> str:
+    explicit = config.get("benchmark_ticker")
+    if explicit:
+        return str(explicit)
+    benchmark_map = config.get("benchmark_map", {})
+    ticker_upper = ticker.upper()
+    for suffix, benchmark in benchmark_map.items():
+        if suffix and ticker_upper.endswith(suffix.upper()):
+            return benchmark
+    return benchmark_map.get("", "SPY")
+
+
+def run_signature(analysts: list[str], depth: int, asset_type: str = "stock") -> str:
+    return "|".join([
+        "analysts=" + ",".join(analysts),
+        f"debate={depth}",
+        f"risk={depth}",
+        f"asset={asset_type}",
+    ])
+
+
+def source_for_tool(tool_name: str, config: dict) -> str | None:
+    if tool_name == "get_verified_market_snapshot":
+        return "Yahoo Finance"
+    category = TOOL_CATEGORIES.get(tool_name)
+    if not category:
+        return None
+    vendor = (config.get("tool_vendors") or {}).get(tool_name)
+    if not vendor:
+        vendor = (config.get("data_vendors") or {}).get(category)
+    if not vendor:
+        return None
+    labels = [VENDOR_LABELS.get(item.strip(), item.strip()) for item in str(vendor).split(",") if item.strip()]
+    return " → ".join(labels) or None
+
+
+def parse_tool_input(value) -> dict:  # noqa: ANN001
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, str) or not value.strip():
+        return {}
+    for parser in (json.loads, ast.literal_eval):
+        try:
+            parsed = parser(value)
+            if isinstance(parsed, dict):
+                return parsed
+        except (ValueError, SyntaxError, json.JSONDecodeError):
+            continue
+    return {}
+
+
+def news_count_from_output(output) -> int | None:  # noqa: ANN001
+    content = getattr(output, "content", output)
+    if isinstance(content, dict):
+        articles = content.get("feed") or content.get("articles") or content.get("news")
+        return len(articles) if isinstance(articles, list) else None
+    text = str(content or "")
+    count = len(re.findall(r"(?m)^###\s+", text))
+    return count or (0 if re.search(r"(?i)no (?:global )?news found", text) else None)
+
+
+def source_summaries(events: list[dict]) -> list[dict]:
+    grouped: dict[str, dict] = {}
+    for event in events:
+        source = event.get("source")
+        if not source:
+            continue
+        entry = grouped.setdefault(source, {"name": source, "details": [], "status": "ok"})
+        detail = event.get("label")
+        if detail and detail not in entry["details"]:
+            entry["details"].append(detail)
+        if event.get("status") in {"error", "unavailable"} and entry["status"] == "ok":
+            entry["status"] = "partial"
+    return list(grouped.values())
+
+
+def news_requests(events: list[dict], config: dict) -> list[dict]:
+    requests = []
+    for event in events:
+        tool_name = event.get("tool")
+        inputs = event.get("inputs") or {}
+        if tool_name == "get_news":
+            requests.append({
+                "kind": "Entreprise",
+                "start_date": inputs.get("start_date"),
+                "end_date": inputs.get("end_date"),
+                "article_limit": config.get("news_article_limit"),
+                "articles_returned": event.get("articles_returned"),
+                "status": event.get("status"),
+            })
+        elif tool_name == "get_global_news":
+            requests.append({
+                "kind": "Macro",
+                "end_date": inputs.get("curr_date"),
+                "lookback_days": inputs.get("look_back_days") or config.get("global_news_lookback_days"),
+                "article_limit": inputs.get("limit") or config.get("global_news_article_limit"),
+                "articles_returned": event.get("articles_returned"),
+                "status": event.get("status"),
+            })
+    unique = []
+    seen = set()
+    for request in requests:
+        key = tuple((name, str(value)) for name, value in request.items() if name != "articles_returned")
+        if key not in seen:
+            seen.add(key)
+            unique.append(request)
+    return unique
+
+
+def analysis_parameters(
+    *,
+    ticker: str,
+    analysts: list[str],
+    depth: int,
+    config: dict,
+    limits: dict,
+    events: list[dict],
+    completed_calls: int,
+    llm_errors: int,
+    memory_used: bool | None,
+    resumed_from_step: int | None,
+) -> dict:
+    configured_retries = config.get("llm_max_retries")
+    retry_budget = DEFAULT_MAX_RETRIES if configured_retries in {None, ""} else int(configured_retries)
+    return {
+        "debates": {"investment": depth, "risk": depth},
+        "calls": {"estimated": limits["expected_model_calls"], "completed": completed_calls},
+        "output_tokens_per_call": limits["max_output_tokens"],
+        "model": {
+            "name": config.get("quick_think_llm"),
+            "temperature": config.get("temperature"),
+            "context_window_tokens": limits.get("context_window_tokens"),
+            "context_source": limits.get("context_source"),
+            "model_capacity_tokens": limits.get("model_capacity_tokens"),
+            "endpoint": config.get("backend_url"),
+        },
+        "sources": source_summaries(events),
+        "news": {
+            "requests": news_requests(events, config),
+            "company_article_limit": config.get("news_article_limit"),
+            "global_article_limit": config.get("global_news_article_limit"),
+            "global_lookback_days": config.get("global_news_lookback_days"),
+        },
+        "benchmark": resolve_benchmark(ticker, config),
+        "memory": {"used": memory_used},
+        "attempts": {
+            "analysis": 1,
+            "max_retries_per_call": retry_budget,
+            "model_errors": llm_errors,
+            "resumed": resumed_from_step is not None,
+            "resume_step": resumed_from_step,
+        },
+        "complete": True,
+    }
+
+
+def legacy_analysis_parameters(item: dict) -> dict:
+    depth = item.get("depth")
+    analysts = item.get("analysts")
+    valid_depth = depth if depth in {1, 2, 3} else None
+    analyst_count = len(analysts) if isinstance(analysts, list) and analysts else None
+    estimated_calls = analysis_limits(valid_depth, analyst_count)["expected_model_calls"] if valid_depth and analyst_count else None
+    return {
+        "debates": {"investment": valid_depth, "risk": valid_depth},
+        "calls": {"estimated": estimated_calls, "completed": None},
+        "output_tokens_per_call": OUTPUT_TOKEN_BUDGETS.get(valid_depth),
+        "model": {
+            "name": item.get("model"),
+            "temperature": None,
+            "context_window_tokens": None,
+            "context_source": None,
+            "model_capacity_tokens": None,
+            "endpoint": None,
+        },
+        "sources": [],
+        "news": {"requests": []},
+        "benchmark": None,
+        "memory": {"used": None},
+        "attempts": {
+            "analysis": None,
+            "max_retries_per_call": None,
+            "model_errors": None,
+            "resumed": None,
+            "resume_step": None,
+        },
+        "complete": False,
+    }
+
+
+def estimate_prompt_tokens(prompts) -> int | None:  # noqa: ANN001
+    """Return a clearly labelled approximation when no Qwen tokenizer is loaded."""
+    if not prompts:
+        return None
+    texts = [str(prompt) for prompt in prompts if prompt is not None]
+    if not texts:
+        return None
+    return max(1, (max(len(text) for text in texts) + 3) // 4)
+
+
+def context_usage(limits: dict, prompt_tokens: int | None) -> dict:
+    """Update a copy of the public context diagnostic for one model request."""
+    result = dict(limits)
+    if prompt_tokens is None:
+        return result
+    window = positive_int(result.get("context_window_tokens"))
+    requested = prompt_tokens + int(result["max_output_tokens"])
+    usage = round(requested / window * 100) if window else None
+    state = "critical" if window and requested > window else "warning" if usage and usage >= 85 else "ok" if window else "unknown"
+    result.update({
+        "last_prompt_estimated_tokens": prompt_tokens,
+        "estimated_request_tokens": requested,
+        "usage_percent": usage,
+        "state": state,
+    })
+    return result
+
+
+def format_token_count(value: int) -> str:
+    return f"{int(value):,}".replace(",", " ")
+
+
+def describe_analysis_error(exc: Exception, job: dict) -> dict:
+    """Turn a provider exception into a useful, non-secret UI diagnostic."""
+    technical = f"{type(exc).__name__}: {exc}".strip()
+    technical = re.sub(
+        r"(?i)((?:authorization|api[_-]?key)\s*[:=]\s*)\S+",
+        r"\1[masqué]",
+        technical,
+    )[:1200]
+    lower = technical.lower()
+    limits = dict(job.get("limits") or {})
+    window = limits.get("context_window_tokens")
+    prompt_tokens = limits.get("last_prompt_estimated_tokens")
+    requested = limits.get("estimated_request_tokens")
+    context_markers = (
+        "context length",
+        "context window",
+        "maximum context",
+        "too many tokens",
+        "num_ctx",
+        "prompt is too long",
+    )
+    context_pressure = bool(
+        window
+        and (
+            (requested and requested >= window)
+            or (prompt_tokens and prompt_tokens >= window * 0.9)
+        )
+    )
+
+    if any(marker in lower for marker in context_markers) or ("500" in lower and context_pressure):
+        prompt_copy = f"environ {format_token_count(prompt_tokens)} tokens" if prompt_tokens else "presque toute la fenêtre disponible"
+        window_copy = f"la fenêtre détectée de {format_token_count(window)} tokens" if window else "la fenêtre communiquée par Ollama"
+        return {
+            "code": "context_limit",
+            "title": "Limite de contexte du modèle atteinte",
+            "message": (
+                f"Le dernier prompt utilisait {prompt_copy}. Avec la réponse demandée, "
+                f"{window_copy} n’était plus suffisante."
+            ),
+            "recommendation": "Réduisez la profondeur ou le nombre d’analystes, ou augmentez OLLAMA_NUM_CTX avant de relancer.",
+            "technical": technical,
+            "context": limits,
+        }
+
+    if any(marker in lower for marker in ("connection refused", "connecterror", "connection error", "timed out", "timeout")):
+        return {
+            "code": "ollama_unavailable",
+            "title": "Connexion à Ollama interrompue",
+            "message": "Le modèle local ne répondait plus pendant la génération.",
+            "recommendation": "Vérifiez qu’Ollama est ouvert, puis relancez l’analyse.",
+            "technical": technical,
+            "context": limits,
+        }
+
+    return {
+        "code": "analysis_error",
+        "title": "L’analyse s’est arrêtée",
+        "message": "Une étape n’a pas pu se terminer. Le détail technique ci-dessous permet d’identifier la cause.",
+        "recommendation": "Vous pouvez corriger la cause indiquée, puis relancer la même analyse.",
+        "technical": technical,
+        "context": limits,
+    }
 
 
 def parse_snapshot(snapshot: str) -> dict:
@@ -204,6 +835,130 @@ REPORT_SECTION_FILES = {
 }
 
 
+def report_section_path(job_id: str, report_key: str) -> Path | None:
+    relative = REPORT_SECTION_FILES.get(report_key)
+    if not relative:
+        return None
+    candidate = (REPORTS_DIR / job_id / relative).resolve()
+    if REPORTS_DIR.resolve() not in candidate.parents:
+        return None
+    return candidate
+
+
+def persist_report_section(job_id: str, report_key: str, content: str) -> Path | None:
+    report_path = report_section_path(job_id, report_key)
+    if not report_path or not str(content or "").strip():
+        return None
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = report_path.with_suffix(f"{report_path.suffix}.tmp")
+    temporary_path.write_text(str(content), encoding="utf-8")
+    temporary_path.replace(report_path)
+    return report_path
+
+
+def update_stage_step(
+    job_id: str,
+    stage_id: str,
+    step_id: str,
+    status: str,
+    *,
+    detail: str | None = None,
+    report_key: str | None = None,
+) -> None:
+    with LOCK:
+        job = JOBS.get(job_id)
+        if not job:
+            return
+        stage_steps = {
+            key: [dict(step) for step in values]
+            for key, values in (job.get("stage_steps") or {}).items()
+        }
+        step = next(
+            (item for item in stage_steps.get(stage_id, []) if item.get("id") == step_id),
+            None,
+        )
+        if not step:
+            return
+        step["status"] = status
+        if detail:
+            step["detail"] = detail
+        if report_key in LINKABLE_STAGE_REPORT_KEYS and status == "complete":
+            step["report_url"] = report_url(job_id, report_key)
+        job["stage_steps"] = stage_steps
+
+
+def graph_node_report(node_name: str, outputs) -> tuple[str | None, str | None, str | None]:  # noqa: ANN001
+    if not isinstance(outputs, dict):
+        return None, None, None
+    analyst_key = ANALYST_NODE_TO_KEY.get(node_name)
+    if analyst_key:
+        report_key = ANALYST_NODE_SPECS[analyst_key].report_key
+        return "analysts", analyst_key, outputs.get(report_key)
+    debate_key = DEBATE_NODE_TO_KEY.get(node_name)
+    if not debate_key:
+        return None, None, None
+    debate_state = outputs.get("investment_debate_state") or {}
+    content_key = {
+        "bull": "bull_history",
+        "bear": "bear_history",
+        "research_manager": "judge_decision",
+    }[debate_key]
+    return "debate", debate_key, debate_state.get(content_key)
+
+
+def record_graph_node_start(job_id: str, node_name: str) -> None:
+    active_index = GRAPH_NODE_STAGE_INDEX.get(node_name)
+    if active_index is None:
+        return
+    with LOCK:
+        job = JOBS.get(job_id)
+        if not job:
+            return
+        job["stages"] = stages(active_index)
+        job["logs"] = (job.get("logs", []) + [f"{node_name} : traitement en cours."])[-8:]
+    if node_name in ANALYST_NODE_TO_KEY:
+        update_stage_step(job_id, "analysts", ANALYST_NODE_TO_KEY[node_name], "active")
+    elif node_name in DEBATE_NODE_TO_KEY:
+        update_stage_step(job_id, "debate", DEBATE_NODE_TO_KEY[node_name], "active")
+
+
+def record_graph_node_complete(job_id: str, node_name: str, outputs) -> None:  # noqa: ANN001
+    stage_id, step_id, content = graph_node_report(node_name, outputs)
+    if not stage_id or not step_id or not content:
+        return
+    report_key = step_id
+    persisted = persist_report_section(job_id, report_key, content)
+    if not persisted:
+        return
+    update_stage_step(
+        job_id,
+        stage_id,
+        step_id,
+        "complete",
+        detail="Rapport terminé et disponible en Markdown.",
+        report_key=report_key,
+    )
+
+
+def record_graph_node_error(job_id: str, node_name: str, error) -> None:  # noqa: ANN001
+    if node_name in ANALYST_NODE_TO_KEY:
+        update_stage_step(
+            job_id,
+            "analysts",
+            ANALYST_NODE_TO_KEY[node_name],
+            "error",
+            detail=f"Échec : {' '.join(str(error).split())[:180]}",
+        )
+    elif node_name in DEBATE_NODE_TO_KEY:
+        update_stage_step(
+            job_id,
+            "debate",
+            DEBATE_NODE_TO_KEY[node_name],
+            "error",
+            detail=f"Échec : {' '.join(str(error).split())[:180]}",
+        )
+
+
 def load_history_items() -> list[dict]:
     try:
         payload = json.loads(HISTORY_FILE.read_text()) if HISTORY_FILE.exists() else []
@@ -270,16 +1025,25 @@ def load_historical_job(history_id: str) -> dict | None:
             "snapshot": {},
         }
 
+    if not isinstance(result.get("analysis_parameters"), dict):
+        result["analysis_parameters"] = legacy_analysis_parameters(item)
+
+    reports = result.get("reports") if isinstance(result.get("reports"), dict) else {}
+    restored_analysts = item.get("analysts", []) or [
+        key for key in ANALYST_NODE_SPECS if reports.get(key)
+    ]
+
     return {
         "id": item["id"],
         "ticker": item.get("ticker", "—"),
         "analysis_date": item.get("analysis_date", "—"),
-        "model": item.get("model", MODEL),
-        "analysts": item.get("analysts", []),
+        "model": item.get("model") or "Non enregistré",
+        "analysts": restored_analysts,
         "depth": item.get("depth", 1),
         "status": "complete",
         "created_at": item.get("created_at", ""),
         "stages": stages(6),
+        "stage_steps": restore_stage_steps(history_id, restored_analysts, reports),
         "logs": ["Analyse restaurée depuis l’historique local."],
         "llm_calls": 0,
         "tool_calls": 0,
@@ -313,28 +1077,128 @@ def apply_output_budget(graph: TradingAgentsGraph, depth: int) -> int:
 
 
 class ProgressCallback(BaseCallbackHandler):
-    def __init__(self, job_id: str, expected_calls: int):
+    def __init__(self, job_id: str, expected_calls: int, config: dict):
         self.job_id = job_id
         self.expected_calls = max(8, expected_calls)
+        self.config = config
+        self._last_prompt_fingerprint = None
+        self._last_prompt_at = 0.0
+        self._tool_runs: dict[str, str] = {}
+        self._graph_node_runs: dict[str, str] = {}
 
-    def _advance(self, message: str) -> None:
+    def _advance(self, message: str, prompts=None) -> None:  # noqa: ANN001
+        prompt_tokens = estimate_prompt_tokens(prompts)
+        fingerprint = hash(tuple(str(prompt) for prompt in prompts or []))
+        now = time.monotonic()
+        if fingerprint == self._last_prompt_fingerprint and now - self._last_prompt_at < 1:
+            return
+        self._last_prompt_fingerprint = fingerprint
+        self._last_prompt_at = now
         with LOCK:
             job = JOBS[self.job_id]
             job["llm_calls"] += 1
-            call = job["llm_calls"]
-            ratio = min(0.999, call / self.expected_calls)
-            active = min(5, 1 + int(ratio * 5))
-            job["stages"] = stages(active)
             job["logs"] = (job["logs"] + [message])[-8:]
+            job["limits"] = context_usage(job["limits"], prompt_tokens)
+
+    def on_chain_start(self, serialized, inputs, **kwargs):  # noqa: ANN001
+        metadata = kwargs.get("metadata") or {}
+        node_name = metadata.get("langgraph_node")
+        if not node_name or kwargs.get("name") != node_name:
+            return
+        run_key = str(kwargs.get("run_id") or f"{node_name}-{time.monotonic_ns()}")
+        self._graph_node_runs[run_key] = node_name
+        record_graph_node_start(self.job_id, node_name)
+
+    def on_chain_end(self, outputs, **kwargs):  # noqa: ANN001
+        node_name = self._graph_node_runs.pop(str(kwargs.get("run_id") or ""), None)
+        if node_name:
+            record_graph_node_complete(self.job_id, node_name, outputs)
+
+    def on_chain_error(self, error, **kwargs):  # noqa: ANN001
+        node_name = self._graph_node_runs.pop(str(kwargs.get("run_id") or ""), None)
+        if node_name:
+            record_graph_node_error(self.job_id, node_name, error)
 
     def on_llm_start(self, serialized, prompts, **kwargs):  # noqa: ANN001
-        self._advance("Un agent local prépare sa réponse.")
+        self._advance("Un agent local prépare sa réponse.", prompts)
+
+    def on_chat_model_start(self, serialized, messages, **kwargs):  # noqa: ANN001
+        prompts = [
+            "\n".join(str(getattr(message, "content", message)) for message in batch)
+            for batch in messages
+        ]
+        self._advance("Un agent local prépare sa réponse.", prompts)
+
+    def on_llm_error(self, error, **kwargs):  # noqa: ANN001
+        with LOCK:
+            job = JOBS[self.job_id]
+            job["llm_errors"] = job.get("llm_errors", 0) + 1
+
+    def on_llm_end(self, response, **kwargs):  # noqa: ANN001
+        with LOCK:
+            needs_runtime_context = not JOBS[self.job_id].get("limits", {}).get("context_window_tokens")
+        if not needs_runtime_context:
+            return
+        runtime = ollama_runtime_info()
+        runtime_context = runtime.get("context_window_tokens")
+        if not runtime_context:
+            return
+        with LOCK:
+            job = JOBS[self.job_id]
+            limits = dict(job.get("limits") or {})
+            limits.update({
+                "context_window_tokens": runtime_context,
+                "context_source": runtime.get("context_source"),
+                "model_capacity_tokens": runtime.get("model_capacity_tokens"),
+                "safe_prompt_tokens": max(0, runtime_context - int(limits["max_output_tokens"])),
+            })
+            job["limits"] = context_usage(limits, limits.get("last_prompt_estimated_tokens"))
 
     def on_tool_start(self, serialized, input_str, **kwargs):  # noqa: ANN001
+        serialized = serialized or {}
+        identity = serialized.get("id") or []
+        tool_name = serialized.get("name") or (identity[-1] if identity else "")
+        run_key = str(kwargs.get("run_id") or f"{tool_name}-{time.monotonic_ns()}")
+        event_id = str(uuid.uuid4())
+        event = {
+            "id": event_id,
+            "tool": tool_name,
+            "label": TOOL_LABELS.get(tool_name, tool_name or "Source de données"),
+            "source": source_for_tool(tool_name, self.config),
+            "status": "requested",
+            "inputs": parse_tool_input(input_str),
+        }
+        self._tool_runs[run_key] = event_id
         with LOCK:
             job = JOBS[self.job_id]
             job["tool_calls"] += 1
-            job["logs"] = (job["logs"] + ["Une source de données est interrogée."])[-8:]
+            job.setdefault("source_events", []).append(event)
+            source = event["source"] or "Une source de données"
+            job["logs"] = (job["logs"] + [f"{source} : {event['label'].lower()}."])[-8:]
+
+    def _finish_tool(self, status: str, output=None, **kwargs) -> None:  # noqa: ANN001
+        run_key = str(kwargs.get("run_id") or "")
+        event_id = self._tool_runs.pop(run_key, None)
+        if not event_id:
+            return
+        with LOCK:
+            events = JOBS[self.job_id].get("source_events", [])
+            event = next((item for item in events if item.get("id") == event_id), None)
+            if not event:
+                return
+            event["status"] = status
+            if event.get("tool") in {"get_news", "get_global_news"} and output is not None:
+                event["articles_returned"] = news_count_from_output(output)
+
+    def on_tool_end(self, output, **kwargs):  # noqa: ANN001
+        content = str(getattr(output, "content", output) or "").lower()
+        unavailable = any(marker in content for marker in (
+            "data_unavailable", "no_data_available", "error fetching", "no news found"
+        ))
+        self._finish_tool("unavailable" if unavailable else "ok", output, **kwargs)
+
+    def on_tool_error(self, error, **kwargs):  # noqa: ANN001
+        self._finish_tool("error", **kwargs)
 
 
 def save_history(job: dict) -> None:
@@ -365,15 +1229,22 @@ def run_analysis(job_id: str, payload: dict) -> None:
     analysis_date = payload["date"]
     analysts = payload["analysts"]
     depth = payload["depth"]
+    config = web_analysis_config(depth)
     try:
         update_job(
             job_id,
             status="running",
             started_at=time.time(),
             stages=stages(0),
+            data_steps=data_steps(0),
             logs=["Yahoo Finance : chargement des OHLCV ajustés et contrôle anti-données futures."],
         )
-        snapshot_text = build_verified_market_snapshot(ticker, analysis_date, look_back_days=30)
+        snapshot_text = build_verified_market_snapshot(
+            ticker,
+            analysis_date,
+            look_back_days=30,
+            progress=lambda step_id, details: record_data_progress(job_id, step_id, details),
+        )
         snapshot = parse_snapshot(snapshot_text)
         partial_reliability = {
             "checks": [
@@ -387,26 +1258,27 @@ def run_analysis(job_id: str, payload: dict) -> None:
             reliability=partial_reliability,
             stages=stages(1),
             logs=["Dernière séance, 30 clôtures et 11 indicateurs vérifiés. Démarrage des analystes."],
+            source_events=[{
+                "id": "verified-market-precheck",
+                "tool": "build_verified_market_snapshot",
+                "label": "Cours OHLCV et contrôle préalable",
+                "source": "Yahoo Finance",
+                "status": "ok",
+                "inputs": {"ticker": ticker, "end_date": analysis_date, "lookback_days": 30},
+            }],
         )
 
-        config = DEFAULT_CONFIG.copy()
-        config.update({
-            "llm_provider": "ollama",
-            "backend_url": "http://localhost:11434/v1",
-            "quick_think_llm": MODEL,
-            "deep_think_llm": MODEL,
-            "max_debate_rounds": depth,
-            "max_risk_discuss_rounds": depth,
-            "output_language": "French",
-            "temperature": 0.1,
-            "checkpoint_enabled": True,
-            "results_dir": str(DATA_DIR / "runtime"),
-        })
-        expected_calls = len(analysts) * 2 + 9 + max(0, depth - 1) * 5
-        callback = ProgressCallback(job_id, expected_calls)
+        with LOCK:
+            limits = dict(JOBS[job_id].get("limits") or analysis_limits(depth, len(analysts)))
+        expected_calls = limits["expected_model_calls"]
+        resume_step = checkpoint_step(
+            config["data_cache_dir"], ticker, analysis_date,
+            run_signature(analysts, depth),
+        )
+        callback = ProgressCallback(job_id, expected_calls, config)
         graph = TradingAgentsGraph(selected_analysts=analysts, debug=False, config=config, callbacks=[callback])
         output_token_budget = apply_output_budget(graph, depth)
-        update_job(job_id, output_token_budget=output_token_budget)
+        update_job(job_id, output_token_budget=output_token_budget, limits=limits)
         final_state, raw_decision = graph.propagate(ticker, analysis_date, asset_type="stock")
         reports = report_sections(final_state)
         final_decision = reports["portfolio"]
@@ -421,6 +1293,21 @@ def run_analysis(job_id: str, payload: dict) -> None:
         report_path = graph.save_reports(final_state, ticker, report_dir)
         complete_report = report_path.read_text(encoding="utf-8") if report_path.exists() else final_decision
         summary = "\n\n".join(filter(None, [reports.get("portfolio"), reports.get("research_manager")]))
+        memory_used = bool(graph.memory_log.get_past_context(ticker))
+        with LOCK:
+            current_job = JOBS[job_id]
+            parameters = analysis_parameters(
+                ticker=ticker,
+                analysts=analysts,
+                depth=depth,
+                config=config,
+                limits=current_job.get("limits") or limits,
+                events=list(current_job.get("source_events", [])),
+                completed_calls=current_job.get("llm_calls", 0),
+                llm_errors=current_job.get("llm_errors", 0),
+                memory_used=memory_used,
+                resumed_from_step=resume_step,
+            )
         result = {
             "raw_decision": raw_label,
             "display_decision": display,
@@ -430,28 +1317,50 @@ def run_analysis(job_id: str, payload: dict) -> None:
             "complete_report": complete_report,
             "reliability": reliability,
             "snapshot": {key: value for key, value in snapshot.items() if key != "raw"},
+            "analysis_parameters": parameters,
         }
-        update_job(job_id, status="complete", stages=stages(6), result=result, report_path=str(report_path), reliability=reliability, logs=["Rapport terminé et contrôlé."])
+        update_job(
+            job_id,
+            status="complete",
+            stages=stages(6),
+            stage_steps=restore_stage_steps(job_id, analysts, reports),
+            result=result,
+            report_path=str(report_path),
+            reliability=reliability,
+            logs=["Rapport terminé et contrôlé."],
+        )
         with LOCK:
             save_history(JOBS[job_id])
     except Exception as exc:  # noqa: BLE001
         with LOCK:
             current = JOBS[job_id]
             active = next((i for i, stage in enumerate(current["stages"]) if stage["status"] == "active"), 0)
-        update_job(job_id, status="error", error=f"{type(exc).__name__}: {exc}", stages=stages(active, error=True), logs=["L’analyse s’est arrêtée avec une erreur."])
+            failure = describe_analysis_error(exc, current)
+            failed_data_steps = fail_active_data_step(current.get("data_steps", []), str(exc) or failure["message"]) if active == 0 else current.get("data_steps", [])
+        update_job(job_id, status="error", error=failure["message"], failure=failure, stages=stages(active, error=True), data_steps=failed_data_steps, logs=[failure["title"]])
 
 
 def ollama_status() -> dict:
-    try:
-        with urllib.request.urlopen(f"{OLLAMA_API}/api/tags", timeout=3) as response:
-            payload = json.loads(response.read())
-        models = []
-        for item in payload.get("models", []):
-            size = item.get("size") or 0
-            models.append({"name": item.get("name", "inconnu"), "size": f"{size / 1_000_000_000:.1f} Go"})
-        return {"online": True, "models": models, "endpoint": OLLAMA_API}
-    except (OSError, urllib.error.URLError, json.JSONDecodeError):
-        return {"online": False, "models": [], "endpoint": OLLAMA_API}
+    return ollama_runtime_info()
+
+
+def tradingagents_capabilities() -> dict:
+    """Expose the analyst registry used by the actual TradingAgents graph."""
+    return {
+        "analysts": [
+            {
+                "id": key,
+                "name": ANALYST_PRESENTATION.get(key, {}).get("name", spec.agent_node),
+                "description": ANALYST_PRESENTATION.get(key, {}).get(
+                    "description", "Analyste disponible dans TradingAgents."
+                ),
+                "engine_name": spec.agent_node,
+                "report_key": spec.report_key,
+            }
+            for key, spec in ANALYST_NODE_SPECS.items()
+        ],
+        "data_steps": data_steps(),
+    }
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -471,6 +1380,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         path = urlparse(self.path).path
+        if path == "/api/capabilities":
+            self.send_json(tradingagents_capabilities())
+            return
         if path == "/api/status":
             self.send_json(ollama_status())
             return
@@ -495,6 +1407,24 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(payload)
             else:
                 self.send_json({"error": "Analyse introuvable"}, HTTPStatus.NOT_FOUND)
+            return
+        section_match = re.fullmatch(
+            r"/api/jobs/([a-f0-9-]+)/reports/([a-z_]+)\.md",
+            path,
+        )
+        if section_match:
+            report_path = report_section_path(section_match.group(1), section_match.group(2))
+            if not report_path or not report_path.is_file():
+                self.send_json({"error": "Rapport Markdown introuvable"}, HTTPStatus.NOT_FOUND)
+                return
+            body = report_path.read_bytes()
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/markdown; charset=utf-8")
+            self.send_header("Content-Disposition", f'inline; filename="{report_path.name}"')
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
             return
         report_match = re.fullmatch(r"/api/jobs/([a-f0-9-]+)/report", path)
         if report_match:
@@ -541,6 +1471,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
 
+        runtime = ollama_runtime_info()
         with LOCK:
             if any(job.get("status") in {"queued", "running"} for job in JOBS.values()):
                 self.send_json({"error": "Une analyse locale est déjà en cours"}, HTTPStatus.CONFLICT)
@@ -557,10 +1488,15 @@ class Handler(BaseHTTPRequestHandler):
                 "created_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
                 "started_at": None,
                 "stages": stages(0),
+                "data_steps": data_steps(0),
+                "stage_steps": workflow_stage_steps(job_id, analysts),
                 "logs": ["Analyse placée dans la file locale."],
                 "llm_calls": 0,
                 "tool_calls": 0,
+                "llm_errors": 0,
+                "source_events": [],
                 "reliability": {},
+                "limits": analysis_limits(depth, len(analysts), runtime),
                 "result": None,
                 "error": None,
             }

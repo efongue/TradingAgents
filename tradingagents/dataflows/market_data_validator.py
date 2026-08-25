@@ -10,7 +10,7 @@ claim. Deterministic, no LLM involved.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 import pandas as pd
 from stockstats import wrap
@@ -23,6 +23,22 @@ DEFAULT_SNAPSHOT_INDICATORS: tuple[str, ...] = (
     "rsi", "boll", "boll_ub", "boll_lb",
     "macd", "macds", "macdh", "atr",
 )
+
+MarketDataProgress = Callable[[str, dict[str, object]], None]
+
+
+def _emit_progress(
+    progress: MarketDataProgress | None,
+    step_id: str,
+    **details: object,
+) -> None:
+    """Report an optional UI progress event without affecting verification."""
+    if progress is None:
+        return
+    try:
+        progress(step_id, details)
+    except Exception:  # noqa: BLE001 — observability must never change the result
+        return
 
 
 def _verified_rows(symbol: str, curr_date: str) -> pd.DataFrame:
@@ -64,13 +80,24 @@ def build_verified_market_snapshot(
     curr_date: str,
     look_back_days: int = 30,
     indicators: Iterable[str] | None = None,
+    progress: MarketDataProgress | None = None,
 ) -> str:
     """Render a ground-truth snapshot: latest OHLCV row, indicators, recent closes."""
     # `df` keeps the original capitalized OHLCV columns (Open/High/Low/Close/
     # Volume); stockstats `wrap()` lowercases columns and adds indicator
     # columns, so read raw prices from `df` and indicators from `stock_df`.
     df = _verified_rows(symbol, curr_date)
+    latest = df.iloc[-1]
+    latest_date = _fmt(latest["Date"])
+    _emit_progress(progress, "ohlcv_loaded", rows=len(df), latest_date=latest_date)
+    _emit_progress(progress, "date_cutoff_verified", analysis_date=curr_date)
+    _emit_progress(progress, "freshness_verified", latest_date=latest_date)
+
     stock_df = wrap(df.copy())
+
+    window = max(1, min(int(look_back_days), 30))
+    recent = df.tail(window)
+    _emit_progress(progress, "recent_closes_selected", count=len(recent))
 
     selected = tuple(indicators or DEFAULT_SNAPSHOT_INDICATORS)
     indicator_values: dict[str, str] = {}
@@ -80,11 +107,21 @@ def build_verified_market_snapshot(
             indicator_values[name] = _fmt(stock_df.iloc[-1][name])
         except Exception as exc:  # noqa: BLE001 — one bad indicator shouldn't sink the snapshot
             indicator_values[name] = f"N/A ({type(exc).__name__})"
+    available_indicators = sum(not value.startswith("N/A") for value in indicator_values.values())
+    _emit_progress(
+        progress,
+        "indicators_calculated",
+        available=available_indicators,
+        total=len(selected),
+    )
 
-    latest = df.iloc[-1]
-    latest_date = _fmt(latest["Date"])
-    window = max(1, min(int(look_back_days), 30))
-    recent = df.tail(window)
+    latest_close = latest.get("Close")
+    _emit_progress(
+        progress,
+        "latest_price_verified",
+        close=None if latest_close is None or pd.isna(latest_close) else float(latest_close),
+        latest_date=latest_date,
+    )
 
     lines = [
         f"## Verified market data snapshot for {symbol.upper()}",

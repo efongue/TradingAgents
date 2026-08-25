@@ -429,7 +429,10 @@ class TradingAgentsGraph:
             past_context=past_context,
             instrument_context=instrument_context,
         )
-        args = self.propagator.get_graph_args()
+        # Forward callbacks to the compiled graph as well as to the model.
+        # This exposes the real LangGraph node lifecycle to optional observers
+        # (for example the local web UI) without changing the graph's decisions.
+        args = self.propagator.get_graph_args(callbacks=self.callbacks)
 
         # Inject thread_id so same ticker+date+graph-shape resumes; a different
         # date or graph shape starts fresh (#1089).

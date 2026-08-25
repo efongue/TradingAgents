@@ -11,6 +11,8 @@ import {
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowDownRight,
+  ArrowUpRight,
   BarChart3,
   BookOpen,
   Bot,
@@ -28,8 +30,10 @@ import {
   Gauge,
   History,
   LoaderCircle,
+  LayoutGrid,
   Menu,
   MessageSquareText,
+  Minus,
   Newspaper,
   Play,
   Plus,
@@ -51,14 +55,15 @@ const NAV_ITEMS = [
   ["settings", "Configuration", Settings],
 ];
 
-const ANALYSTS = [
-  ["market", "Marché", BarChart3],
-  ["news", "Actualités", Newspaper],
-  ["social", "Sentiment", MessageSquareText],
-  ["fundamentals", "Fondamentaux", BookOpen],
-];
+const ANALYST_ICONS = {
+  market: BarChart3,
+  news: Newspaper,
+  social: MessageSquareText,
+  fundamentals: BookOpen,
+};
 
 const TAB_ITEMS = [
+  ["image", "Image", LayoutGrid],
   ["summary", "Synthèse", FileText],
   ["analysts", "Analystes", Users],
   ["debate", "Débat", MessageSquareText],
@@ -66,14 +71,62 @@ const TAB_ITEMS = [
   ["report", "Rapport complet", BookOpen],
 ];
 
+const REPORT_LINK_LABELS = {
+  market: "Marché",
+  social: "Sentiment du marché",
+  news: "Actualités",
+  fundamentals: "Fondamentaux",
+  bull: "Analyste haussier",
+  bear: "Analyste baissier",
+};
+
 const INITIAL_FORM = {
   ticker: "AAPL",
   date: new Date().toISOString().slice(0, 10),
   depth: 1,
-  analysts: ["market", "news", "social", "fundamentals"],
+  analysts: [],
 };
 
 const DATA_COLLECTION_COPY = "Avant de lancer les agents, l’application contrôle les données de marché avec Yahoo Finance : téléchargement ou lecture du cache local de 5 ans d’OHLCV quotidiens ajustés (ouverture, plus haut, plus bas, clôture, volume). Elle vérifie qu’aucune ligne ne dépasse la date d’analyse, refuse les données dont la dernière séance date de plus de 10 jours, retient les 30 dernières clôtures et calcule localement 11 indicateurs (EMA/SMA, RSI, bandes de Bollinger, MACD, ATR).";
+const formatTokens = (value) => value === null || value === undefined || value === ""
+  ? "Non disponible"
+  : Number(value).toLocaleString("fr-FR");
+
+function cleanReportText(value) {
+  return String(value || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/^[\s>*#\d.)-]+/g, "")
+    .replace(/[*_`~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function reportHighlights(value, count = 1) {
+  const ignored = /^(analyse|résumé|conclusion|recommandation|note|rapport sur|fin du rapport|key observations|recommendations?|[A-Z]\.\s)\b/i;
+  const lines = String(value || "")
+    .split(/\n+/)
+    .map(cleanReportText)
+    .filter((line) => line.length >= 45 && !ignored.test(line) && !/:\s*$/.test(line));
+  return [...new Set(lines)].slice(0, count).map((line) => (
+    line.length > 210 ? `${line.slice(0, 207).replace(/\s+\S*$/, "")}…` : line
+  ));
+}
+
+function numberValue(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const parsed = Number(String(value ?? "").replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatMarketNumber(value, maximumFractionDigits = 2) {
+  const parsed = numberValue(value);
+  return parsed === null
+    ? "Non disponible"
+    : parsed.toLocaleString("fr-FR", { maximumFractionDigits });
+}
 
 async function api(path, options) {
   const response = await fetch(path, {
@@ -133,7 +186,7 @@ function Sidebar({ page, onPage, online, model, analysisActive, open, onClose })
           <div className={`status-dot ${online ? "online" : "offline"}`} />
           <div>
             <strong>{online ? "Ollama" : "Ollama hors ligne"}</strong>
-            <span>{model || "qwen3:8b"}</span>
+            <span>{model || "Modèle non détecté"}</span>
           </div>
         </div>
         <div className="local-note">Modèle local · aucune clé externe</div>
@@ -154,7 +207,7 @@ function Topbar({ onMenu, online, model }) {
   );
 }
 
-function AnalystToggle({ id, label, Icon, selected, disabled, onToggle }) {
+function AnalystToggle({ id, label, description, Icon, selected, disabled, onToggle }) {
   return (
     <button
       type="button"
@@ -163,13 +216,18 @@ function AnalystToggle({ id, label, Icon, selected, disabled, onToggle }) {
       disabled={disabled}
       aria-pressed={selected}
     >
-      {selected ? <Check size={17} /> : <Icon size={17} />}
-      {label}
+      <span className="analyst-card-icon" aria-hidden="true">
+        {selected ? <Check size={17} /> : <Icon size={17} />}
+      </span>
+      <span className="analyst-card-copy">
+        <strong>{label}</strong>
+        <small>{description}</small>
+      </span>
     </button>
   );
 }
 
-function AnalysisForm({ form, setForm, disabled, online, onSubmit }) {
+function AnalysisForm({ form, setForm, disabled, online, analysts, analystsError, onSubmit }) {
   const toggleAnalyst = (id) => {
     setForm((current) => {
       const exists = current.analysts.includes(id);
@@ -219,23 +277,28 @@ function AnalysisForm({ form, setForm, disabled, online, onSubmit }) {
           <option value="3">Approfondie</option>
         </select>
       </label>
-      <fieldset className="analyst-field" disabled={disabled}>
+      <fieldset className="analyst-field" disabled={disabled || analysts.length === 0}>
         <legend>Analystes</legend>
+        <p className="analyst-field-copy">Choisissez les angles utilisés pour construire l’analyse.</p>
         <div className="analyst-options">
-          {ANALYSTS.map(([id, label, Icon]) => (
-            <AnalystToggle
-              key={id}
-              id={id}
-              label={label}
-              Icon={Icon}
-              selected={form.analysts.includes(id)}
-              disabled={disabled}
-              onToggle={toggleAnalyst}
-            />
-          ))}
+          {analysts.length ? analysts.map((analyst) => {
+            const Icon = ANALYST_ICONS[analyst.id] || Users;
+            return (
+              <AnalystToggle
+                key={analyst.id}
+                id={analyst.id}
+                label={analyst.name}
+                description={analyst.description}
+                Icon={Icon}
+                selected={form.analysts.includes(analyst.id)}
+                disabled={disabled}
+                onToggle={toggleAnalyst}
+              />
+            );
+          }) : <span className="analyst-options-status">{analystsError || "Chargement des analystes…"}</span>}
         </div>
       </fieldset>
-      <button className="primary-button launch-button" type="submit" disabled={disabled || !online}>
+      <button className="primary-button launch-button" type="submit" disabled={disabled || !online || analysts.length === 0 || form.analysts.length === 0}>
         {disabled ? <LoaderCircle className="spin" size={18} /> : <Play size={18} fill="currentColor" />}
         {disabled ? "Analyse en cours…" : "Analyser cette action"}
       </button>
@@ -258,7 +321,44 @@ function StageIcon({ id, status }) {
   return <Icon size={23} />;
 }
 
-function Workflow({ job, connectionUnverified = false }) {
+function WorkflowStepList({ steps, connectionUnverified, label }) {
+  return (
+    <div className="data-substeps" aria-label={label}>
+      {steps.map((step) => {
+        const status = connectionUnverified && step.status === "active" ? "unverified" : step.status;
+        const icon = status === "complete"
+          ? <Check size={15} />
+          : status === "active"
+            ? <LoaderCircle className="spin" size={15} />
+            : ["warning", "error", "unverified"].includes(status)
+              ? <AlertTriangle size={15} />
+              : <Circle size={12} />;
+        return (
+          <div className={`data-substep ${status}`} key={step.id}>
+            <span className="data-substep-icon" aria-hidden="true">{icon}</span>
+            <span className="data-substep-copy">
+              <strong>{step.label}</strong>
+              <small>{step.detail}</small>
+            </span>
+            {step.report_url ? (
+              <a
+                className="step-report-link"
+                href={step.report_url}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Ouvrir le rapport Markdown : ${step.label}`}
+              >
+                <FileText size={13} /> .md
+              </a>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Workflow({ job, defaultDataSteps = [], connectionUnverified = false }) {
   const stages = job?.stages || [
     ["data", "Données", DATA_COLLECTION_COPY],
     ["analysts", "Analystes", "En attente"],
@@ -267,6 +367,8 @@ function Workflow({ job, connectionUnverified = false }) {
     ["risks", "Risques", "En attente"],
     ["portfolio", "Portefeuille", "En attente"],
   ].map(([id, label, detail]) => ({ id, label, status: "pending", detail }));
+  const visibleDataSteps = job?.data_steps || defaultDataSteps;
+  const visibleStageSteps = job?.stage_steps || {};
 
   return (
     <section className="workflow-panel" aria-live="polite">
@@ -293,8 +395,20 @@ function Workflow({ job, connectionUnverified = false }) {
                   {displayStatus === "complete" ? "Terminé" : displayStatus === "active" ? "En cours" : displayStatus === "unverified" ? "État non vérifié" : displayStatus === "error" ? job?.status === "interrupted" ? "Interrompu" : "Erreur" : "En attente"}
                 </span>
               </div>
-              <p>{stage.detail}</p>
-              {displayStatus === "active" && job?.logs?.length ? (
+              {stage.id === "data" && visibleDataSteps.length ? (
+                <WorkflowStepList
+                  steps={visibleDataSteps}
+                  connectionUnverified={connectionUnverified}
+                  label="Contrôles des données de marché"
+                />
+              ) : visibleStageSteps[stage.id]?.length ? (
+                <WorkflowStepList
+                  steps={visibleStageSteps[stage.id]}
+                  connectionUnverified={connectionUnverified}
+                  label={`Sous-étapes : ${stage.label}`}
+                />
+              ) : <p>{stage.detail}</p>}
+              {stage.id !== "data" && displayStatus === "active" && job?.logs?.length ? (
                 <div className="active-log">{job.logs[job.logs.length - 1]}</div>
               ) : null}
             </div>
@@ -335,6 +449,7 @@ function ReliabilityRail({ job, result, connectionUnverified = false }) {
           );
         })}
       </div>
+      {job?.limits ? <ContextLimitCard limits={job.limits} /> : null}
       {blocked ? (
         <div className="blocking-box">
           <AlertTriangle size={25} />
@@ -355,7 +470,76 @@ function ReliabilityRail({ job, result, connectionUnverified = false }) {
   );
 }
 
-function AnalysisPage({ form, setForm, job, online, pollWarning, onSubmit, onReset }) {
+function ContextLimitCard({ limits }) {
+  const windowTokens = limits.context_window_tokens;
+  const promptTokens = limits.last_prompt_estimated_tokens;
+  const requestTokens = limits.estimated_request_tokens;
+  const usage = Math.max(0, Number(limits.usage_percent || 0));
+  const hasWindow = Number(windowTokens) > 0;
+  const meterWidth = `${Math.min(100, usage)}%`;
+  const state = hasWindow ? limits.state || "waiting" : "unknown";
+
+  return (
+    <section className={`context-card ${state}`} aria-label="Utilisation du contexte du modèle">
+      <div className="context-card-head">
+        <Gauge size={20} />
+        <div>
+          <strong>Contexte du modèle</strong>
+          <span>{hasWindow ? `${formatTokens(windowTokens)} tokens` : "Limite non communiquée par Ollama"}</span>
+        </div>
+      </div>
+      {hasWindow ? (
+        <div className="context-meter" aria-label={usage ? `${usage} % du contexte estimé` : "Contexte en attente"}>
+          <i style={{ width: meterWidth }} />
+        </div>
+      ) : null}
+      <dl className="context-values">
+        <div><dt>Dernier prompt</dt><dd>{promptTokens ? `≈ ${formatTokens(promptTokens)}` : "En attente"}</dd></div>
+        <div><dt>Réponse réservée</dt><dd>{formatTokens(limits.max_output_tokens)}</dd></div>
+        <div><dt>Total estimé</dt><dd>{requestTokens ? formatTokens(requestTokens) : "—"}</dd></div>
+      </dl>
+      {state === "warning" ? <p>La requête approche de la limite. Les réponses peuvent être raccourcies.</p> : null}
+      {state === "critical" ? <p>La requête estimée dépasse la fenêtre disponible et risque d’échouer.</p> : null}
+      {!hasWindow && limits.model_capacity_tokens ? <p>Capacité déclarée du modèle : {formatTokens(limits.model_capacity_tokens)} tokens. Le contexte réellement alloué sera lu après le premier appel.</p> : null}
+      <small>{limits.context_source || (limits.model_capacity_tokens ? "La capacité du modèle est connue, mais pas encore le contexte alloué." : "Ollama n’a communiqué aucune capacité de contexte.")} Le nombre de tokens du prompt reste une estimation.</small>
+    </section>
+  );
+}
+
+function AnalysisFailure({ job }) {
+  const failure = job?.failure || {
+    title: job?.status === "interrupted" ? "Analyse interrompue" : "L’analyse s’est arrêtée",
+    message: job?.error || "Une erreur inconnue a interrompu l’analyse.",
+  };
+  const context = failure.context || job?.limits;
+
+  return (
+    <section className="analysis-failure" role="alert">
+      <span className="failure-icon"><AlertTriangle size={23} /></span>
+      <div className="failure-content">
+        <span className="failure-label">Analyse arrêtée</span>
+        <h2>{failure.title}</h2>
+        <p>{failure.message}</p>
+        {context?.context_window_tokens ? (
+          <div className="failure-metrics">
+            <span>Limite<strong>{formatTokens(context.context_window_tokens)} tokens</strong></span>
+            <span>Prompt estimé<strong>{context.last_prompt_estimated_tokens ? `≈ ${formatTokens(context.last_prompt_estimated_tokens)} tokens` : "Indisponible"}</strong></span>
+            <span>Réponse prévue<strong>{formatTokens(context.max_output_tokens)} tokens max.</strong></span>
+          </div>
+        ) : null}
+        {failure.recommendation ? <p className="failure-recommendation">À faire : {failure.recommendation}</p> : null}
+        {failure.technical ? (
+          <details>
+            <summary>Afficher le détail technique</summary>
+            <code>{failure.technical}</code>
+          </details>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analystsError, pollWarning, onSubmit, onReset }) {
   const busy = job && ["queued", "running"].includes(job.status);
   const result = job?.result;
 
@@ -371,12 +555,12 @@ function AnalysisPage({ form, setForm, job, online, pollWarning, onSubmit, onRes
           <p>Choisissez une action : plusieurs agents IA locaux confrontent leurs analyses à des données vérifiées.</p>
         </div>
       </div>
-      <AnalysisForm form={form} setForm={setForm} disabled={busy} online={online} onSubmit={onSubmit} />
+      <AnalysisForm form={form} setForm={setForm} disabled={busy} online={online} analysts={analysts} analystsError={analystsError} onSubmit={onSubmit} />
       {!online ? <div className="connection-error"><AlertTriangle size={18} /> Ollama ne répond pas pour le moment. Ouvrez l’application Ollama, puis réessayez.</div> : null}
       {pollWarning ? <div className="connection-warning"><RefreshCw size={18} /> {pollWarning}</div> : null}
-      {["error", "interrupted"].includes(job?.status) ? <div className="connection-error"><AlertTriangle size={18} /> {job.error}</div> : null}
+      {["error", "interrupted"].includes(job?.status) ? <AnalysisFailure job={job} /> : null}
       <div className="analysis-grid">
-        <Workflow job={job} connectionUnverified={Boolean(pollWarning)} />
+        <Workflow job={job} defaultDataSteps={dataSteps} connectionUnverified={Boolean(pollWarning)} />
         <ReliabilityRail job={job} connectionUnverified={Boolean(pollWarning)} />
       </div>
     </main>
@@ -407,8 +591,272 @@ function DecisionHero({ result }) {
   );
 }
 
-function ReportContent({ result, tab }) {
+function BentoInsight({ title, icon: Icon, source, className = "", fallback }) {
+  const insights = reportHighlights(source, 2);
+  return (
+    <article className={`bento-card bento-insight ${className}`}>
+      <div className="bento-card-title"><Icon size={18} /><h3>{title}</h3></div>
+      {insights.length ? (
+        <ul>{insights.map((insight) => <li key={insight}>{insight}</li>)}</ul>
+      ) : <p className="bento-empty">{fallback}</p>}
+    </article>
+  );
+}
+
+function FinancialBento({ job, result }) {
   const reports = result.reports || {};
+  const snapshot = result.snapshot || {};
+  const reliability = result.reliability || {};
+  const decision = String(result.display_decision || "ATTENDRE").toUpperCase();
+  const positive = /ACHETER|BUY/.test(decision);
+  const negative = /VENDRE|SELL/.test(decision);
+  const tone = positive ? "positive" : negative ? "negative" : "neutral";
+  const SignalIcon = positive ? ArrowUpRight : negative ? ArrowDownRight : Minus;
+  const close = numberValue(snapshot.close ?? reliability.verified_close);
+  const open = numberValue(snapshot.open);
+  const high = numberValue(snapshot.high);
+  const low = numberValue(snapshot.low);
+  const volume = numberValue(snapshot.volume);
+  const change = close !== null && open ? ((close - open) / open) * 100 : null;
+  const rangePosition = close !== null && low !== null && high !== null && high > low
+    ? Math.min(100, Math.max(0, ((close - low) / (high - low)) * 100))
+    : 50;
+  const thesis = reportHighlights(reports.portfolio || result.summary, 1)[0]
+    || "La décision finale est disponible dans la synthèse du rapport.";
+  const debateSource = [reports.research_manager, reports.bull, reports.bear].filter(Boolean).join("\n");
+  const riskSource = [reports.conservative, reports.neutral, reports.aggressive].filter(Boolean).join("\n");
+
+  return (
+    <section className={`financial-bento ${tone}`} aria-label={`Vue bento de l’analyse ${job.ticker}`}>
+      <article className="bento-card bento-hero">
+        <div className="bento-hero-copy">
+          <span className="bento-label">Vue financière · {job.analysis_date}</span>
+          <strong className="bento-ticker">{job.ticker}</strong>
+          <h2>{decision}</h2>
+          <p>{thesis}</p>
+        </div>
+        <div className="bento-signal" aria-label={`Décision : ${decision}`}>
+          <span><SignalIcon size={34} strokeWidth={1.7} /></span>
+          <small>{result.confidence}</small>
+        </div>
+      </article>
+
+      <article className="bento-card bento-price">
+        <span className="bento-label">Cours vérifié</span>
+        <strong>{formatMarketNumber(close)}</strong>
+        <span className={change === null ? "" : change >= 0 ? "bento-up" : "bento-down"}>
+          {change === null ? "Variation non disponible" : `${change >= 0 ? "+" : ""}${change.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} % sur la séance`}
+        </span>
+        <small>{close !== null && reliability.latest_date ? `Séance du ${reliability.latest_date}` : "Date de séance non enregistrée"}</small>
+      </article>
+
+      <article className={`bento-card bento-quality ${reliability.blocked ? "blocked" : "verified"}`}>
+        {reliability.blocked ? <AlertTriangle size={27} /> : <ShieldCheck size={27} />}
+        <strong>{reliability.blocked ? "Contrôle bloquant" : "Données contrôlées"}</strong>
+        <p>{reliability.block_reason || "Aucune incohérence critique enregistrée."}</p>
+      </article>
+
+      <article className="bento-card bento-range">
+        <div className="bento-card-title"><BarChart3 size={18} /><h3>Fourchette de séance</h3></div>
+        <div className="bento-range-track" aria-label={`Position du cours dans la fourchette : ${Math.round(rangePosition)} %`}>
+          <i style={{ left: `${rangePosition}%` }} />
+        </div>
+        <dl>
+          <div><dt>Plus bas</dt><dd>{formatMarketNumber(low)}</dd></div>
+          <div><dt>Ouverture</dt><dd>{formatMarketNumber(open)}</dd></div>
+          <div><dt>Plus haut</dt><dd>{formatMarketNumber(high)}</dd></div>
+          <div><dt>Volume</dt><dd>{formatMarketNumber(volume, 0)}</dd></div>
+        </dl>
+      </article>
+
+      <BentoInsight
+        title="Signal marché"
+        icon={TrendingUp}
+        source={reports.market}
+        className="bento-market"
+        fallback="L’analyste marché n’a pas produit de rapport pour cette analyse."
+      />
+      <BentoInsight
+        title="Fondamentaux"
+        icon={BookOpen}
+        source={reports.fundamentals}
+        className="bento-fundamentals"
+        fallback="Aucune donnée fondamentale n’est disponible dans ce rapport."
+      />
+      <BentoInsight
+        title="Actualités à surveiller"
+        icon={Newspaper}
+        source={reports.news}
+        className="bento-news"
+        fallback="Aucune actualité n’est disponible dans ce rapport."
+      />
+      <BentoInsight
+        title="Ce que dit le débat"
+        icon={MessageSquareText}
+        source={debateSource}
+        className="bento-debate"
+        fallback="Aucun débat haussier ou baissier n’est disponible."
+      />
+      <BentoInsight
+        title="Risque principal"
+        icon={ShieldCheck}
+        source={riskSource}
+        className="bento-risk"
+        fallback="Aucune analyse de risque n’est disponible."
+      />
+    </section>
+  );
+}
+
+function ParameterCard({ className = "", icon: Icon, title, children }) {
+  return (
+    <article className={`parameter-card ${className}`}>
+      <div className="parameter-card-title"><Icon size={18} /><h3>{title}</h3></div>
+      <div className="parameter-card-content">{children}</div>
+    </article>
+  );
+}
+
+function AnalysisParametersPanel({ job, result }) {
+  const parameters = result.analysis_parameters || {};
+  const debates = parameters.debates || {};
+  const calls = parameters.calls || {};
+  const model = parameters.model || {};
+  const sources = parameters.sources || [];
+  const news = parameters.news || {};
+  const requests = news.requests || [];
+  const memory = parameters.memory || {};
+  const attempts = parameters.attempts || {};
+  const shown = (value, suffix = "") => value === null || value === undefined ? "Non enregistré" : `${value}${suffix}`;
+  const temperature = model.temperature === null || model.temperature === undefined
+    ? "Non enregistrée"
+    : Number(model.temperature).toLocaleString("fr-FR");
+
+  return (
+    <details className="effective-parameters" open>
+      <summary>
+        <span><SlidersHorizontal size={20} /><strong>Paramètres effectifs</strong></span>
+        <span className="parameters-summary-copy">Ce qui a réellement configuré cette analyse</span>
+        <ChevronDown className="parameters-chevron" size={19} />
+      </summary>
+      {parameters.complete === false ? (
+        <div className="legacy-parameters-note">
+          <History size={17} /> Certains détails n’étaient pas encore enregistrés lors de cette ancienne analyse.
+        </div>
+      ) : null}
+      <div className="parameter-grid">
+        <ParameterCard className="parameter-effort" icon={MessageSquareText} title="Effort de l’analyse">
+          <dl>
+            <div><dt>Débat investissement</dt><dd>{shown(debates.investment, " tour(s)")}</dd></div>
+            <div><dt>Discussion des risques</dt><dd>{shown(debates.risk, " tour(s)")}</dd></div>
+            <div><dt>Appels au modèle</dt><dd>{shown(calls.estimated, " estimés")}</dd></div>
+            {calls.completed !== null && calls.completed !== undefined ? <div><dt>Appels effectués</dt><dd>{calls.completed}</dd></div> : null}
+            <div><dt>Budget de réponse</dt><dd>{shown(parameters.output_tokens_per_call, " tokens/appel")}</dd></div>
+          </dl>
+        </ParameterCard>
+
+        <ParameterCard icon={Bot} title="Modèle">
+          <strong className="parameter-primary-value">{model.name || job.model || "Non enregistré"}</strong>
+          <p>Température : {temperature}</p>
+          <p>Fenêtre de contexte : {model.context_window_tokens ? `${formatTokens(model.context_window_tokens)} tokens` : "Non enregistrée"}</p>
+          {model.model_capacity_tokens ? <p>Capacité déclarée : {formatTokens(model.model_capacity_tokens)} tokens</p> : null}
+          {model.context_source ? <small className="parameter-value-source">{model.context_source}</small> : null}
+          <p>Modèle rapide et approfondi identique.</p>
+        </ParameterCard>
+
+        <ParameterCard className="parameter-sources" icon={Database} title="Sources réellement consultées">
+          {sources.length ? (
+            <ul className="source-list">
+              {sources.map((source) => (
+                <li key={source.name}>
+                  <span><strong>{source.name}</strong><small>{(source.details || []).join(" · ")}</small></span>
+                  <span className={`source-status ${source.status || "ok"}`}>{source.status === "partial" ? "Partiel" : "Consultée"}</span>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="parameter-empty">Non enregistrées pour cette analyse historique.</p>}
+        </ParameterCard>
+
+        <ParameterCard className="parameter-news" icon={Newspaper} title="Période et actualités">
+          {requests.length ? (
+            <ul className="news-request-list">
+              {requests.map((request, index) => {
+                const period = request.start_date && request.end_date
+                  ? `${request.start_date} → ${request.end_date}`
+                  : request.lookback_days
+                    ? `${request.lookback_days} jours avant le ${request.end_date || job.analysis_date}`
+                    : "Période non enregistrée";
+                const returned = request.articles_returned === null || request.articles_returned === undefined
+                  ? "nombre retourné non mesuré"
+                  : `${request.articles_returned} article(s) retourné(s)`;
+                return (
+                  <li key={`${request.kind}-${period}-${index}`}>
+                    <strong>{request.kind}</strong>
+                    <span>{period}</span>
+                    <small>{returned} · {shown(request.article_limit, " maximum")}</small>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : <p className="parameter-empty">Aucune consultation d’actualités enregistrée.</p>}
+        </ParameterCard>
+
+        <ParameterCard icon={BarChart3} title="Indice de comparaison">
+          <strong className="parameter-primary-value">{parameters.benchmark || "Non enregistré"}</strong>
+          <p>Référence utilisée pour mesurer la performance relative des décisions passées.</p>
+        </ParameterCard>
+
+        <ParameterCard icon={History} title="Mémoire antérieure">
+          <strong className={`parameter-primary-value memory-${String(memory.used)}`}>
+            {memory.used === true ? "Utilisée" : memory.used === false ? "Non utilisée" : "Non enregistré"}
+          </strong>
+          <p>{memory.used === true ? `Des enseignements antérieurs ont été injectés pour ${job.ticker}.` : memory.used === false ? "Aucun enseignement antérieur n’a été injecté." : "Ce détail n’existait pas dans l’ancien historique."}</p>
+        </ParameterCard>
+
+        <ParameterCard icon={RefreshCw} title="Tentatives et reprises">
+          <dl>
+            <div><dt>Lancement de l’analyse</dt><dd>{shown(attempts.analysis)}</dd></div>
+            <div><dt>Relances autorisées</dt><dd>{shown(attempts.max_retries_per_call, " par appel")}</dd></div>
+            <div><dt>Erreurs modèle remontées</dt><dd>{shown(attempts.model_errors)}</dd></div>
+            <div><dt>Reprise de sauvegarde</dt><dd>{attempts.resumed === true ? `Oui, étape ${attempts.resume_step}` : attempts.resumed === false ? "Non" : "Non enregistré"}</dd></div>
+          </dl>
+        </ParameterCard>
+      </div>
+    </details>
+  );
+}
+
+function MarkdownReportLinks({ job, reports, reportKeys }) {
+  const available = reportKeys.filter((key) => reports[key]);
+  if (!available.length) return null;
+  return (
+    <nav className="markdown-report-links" aria-label="Rapports Markdown disponibles">
+      <span>Fichiers sources</span>
+      <div>
+        {available.map((key) => (
+          <a
+            key={key}
+            href={`/api/jobs/${job.id}/reports/${key}.md`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <FileText size={14} /> {REPORT_LINK_LABELS[key]}.md
+          </a>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+function ReportContent({ job, result, tab }) {
+  const reports = result.reports || {};
+  if (tab === "image") return <FinancialBento job={job} result={result} />;
+
+  const reportKeys = tab === "analysts"
+    ? ["market", "social", "news", "fundamentals"]
+    : [];
+  const debateSteps = job.stage_steps?.debate || [];
+
   const content = {
     summary: result.summary,
     analysts: [reports.market, reports.news, reports.social, reports.fundamentals].filter(Boolean).join("\n\n---\n\n"),
@@ -418,9 +866,22 @@ function ReportContent({ result, tab }) {
   }[tab] || result.summary;
 
   return (
-    <div className="markdown-body">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || "Aucun contenu disponible."}</ReactMarkdown>
-    </div>
+    <>
+      {tab === "debate" && debateSteps.length ? (
+        <section className="report-stage-summary" aria-labelledby="debate-steps-title">
+          <h3 id="debate-steps-title">Étapes du débat</h3>
+          <WorkflowStepList
+            steps={debateSteps}
+            connectionUnverified={false}
+            label="Étapes réelles du débat"
+          />
+        </section>
+      ) : null}
+      <MarkdownReportLinks job={job} reports={reports} reportKeys={reportKeys} />
+      <div className="markdown-body">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || "Aucun contenu disponible."}</ReactMarkdown>
+      </div>
+    </>
   );
 }
 
@@ -445,6 +906,7 @@ function ResultPage({ job, onReset, historical = false, onBackHistory }) {
         </div>
       </div>
       <DecisionHero result={result} />
+      <AnalysisParametersPanel job={job} result={result} />
       <div className="result-grid">
         <section className="report-panel">
           <div className="tabs" role="tablist" aria-label="Sections du rapport">
@@ -461,7 +923,7 @@ function ResultPage({ job, onReset, historical = false, onBackHistory }) {
               <span>Bloquant</span>
             </div>
           ) : null}
-          <ReportContent result={result} tab={tab} />
+          <ReportContent job={job} result={result} tab={tab} />
         </section>
         <ReliabilityRail result={result} />
       </div>
@@ -493,8 +955,8 @@ function ModelsPage({ status, refresh }) {
       <section className="model-list-panel">
         <div className="connection-strip"><span className={`status-dot ${status.online ? "online" : "offline"}`} /><strong>{status.online ? "Ollama connecté" : "Ollama hors ligne"}</strong><span>{status.endpoint}</span></div>
         {(status.models || []).map((model) => (
-          <div className={`model-row ${model.name === "qwen3:8b" ? "selected" : ""}`} key={model.name}>
-            <Bot size={22} /><div><strong>{model.name}</strong><span>{model.size}</span></div>{model.name === "qwen3:8b" ? <span className="active-label">Actif</span> : null}
+          <div className={`model-row ${model.name === status.active_model ? "selected" : ""}`} key={model.name}>
+            <Bot size={22} /><div><strong>{model.name}</strong><span>{model.size}</span></div>{model.name === status.active_model ? <span className="active-label">Actif</span> : null}
           </div>
         ))}
       </section>
@@ -502,15 +964,26 @@ function ModelsPage({ status, refresh }) {
   );
 }
 
-function SettingsPage() {
+function SettingsPage({ status }) {
+  const configuration = status.configuration || {};
+  const budgets = configuration.output_token_budgets || {};
+  const budgetCopy = [budgets[1], budgets[2], budgets[3]].every((value) => value !== undefined)
+    ? `${formatTokens(budgets[1])} / ${formatTokens(budgets[2])} / ${formatTokens(budgets[3])}`
+    : "Non disponible";
   return (
     <main className="page simple-page">
       <div className="page-heading"><div><h1>Configuration</h1><p>Ces réglages sont utilisés par l’interface sans modifier le projet TradingAgents.</p></div></div>
       <section className="settings-panel">
-        <div className="setting-row"><div><Gauge size={21} /><span><strong>Endpoint Ollama</strong><small>Serveur local compatible OpenAI</small></span></div><code>http://localhost:11434/v1</code></div>
-        <div className="setting-row"><div><Sparkles size={21} /><span><strong>Modèle</strong><small>Analyse rapide et approfondie</small></span></div><code>qwen3:8b</code></div>
-        <div className="setting-row"><div><SlidersHorizontal size={21} /><span><strong>Réflexion hybride</strong><small>Désactivée pour préserver le contexte des agents</small></span></div><code>think=false</code></div>
-        <div className="setting-row"><div><ShieldCheck size={21} /><span><strong>Blocage des incohérences</strong><small>Compare les prix proposés au dernier cours vérifié</small></span></div><code>actif</code></div>
+        <div className="setting-row"><div><Gauge size={21} /><span><strong>Endpoint Ollama</strong><small>Adresse communiquée par le serveur local</small></span></div><code>{status.openai_endpoint || "Non disponible"}</code></div>
+        <div className="setting-row"><div><Sparkles size={21} /><span><strong>Modèle actif</strong><small>Modèle réellement sélectionné par le serveur</small></span></div><code>{status.active_model || "Non disponible"}</code></div>
+        <div className="setting-row"><div><Database size={21} /><span><strong>Fenêtre de contexte active</strong><small>{status.context_source || "Le modèle sélectionné n’est pas chargé dans Ollama"}</small></span></div><code>{status.context_window_tokens ? `${formatTokens(status.context_window_tokens)} tokens` : "Non disponible"}</code></div>
+        <div className="setting-row"><div><Gauge size={21} /><span><strong>Capacité déclarée du modèle</strong><small>Maximum annoncé par les métadonnées du modèle, distinct du contexte alloué</small></span></div><code>{status.model_capacity_tokens ? `${formatTokens(status.model_capacity_tokens)} tokens` : "Non disponible"}</code></div>
+        <div className="setting-row"><div><SlidersHorizontal size={21} /><span><strong>Température</strong><small>Valeur envoyée à chaque appel du modèle</small></span></div><code>{configuration.temperature === null || configuration.temperature === undefined ? "Non disponible" : Number(configuration.temperature).toLocaleString("fr-FR")}</code></div>
+        <div className="setting-row"><div><Gauge size={21} /><span><strong>Budgets de réponse</strong><small>Rapide / moyenne / approfondie, en tokens par appel</small></span></div><code>{budgetCopy}</code></div>
+        <div className="setting-row"><div><RefreshCw size={21} /><span><strong>Relances du modèle</strong><small>Maximum autorisé pour chaque appel</small></span></div><code>{configuration.max_retries_per_call ?? "Non disponible"}</code></div>
+        <div className="setting-row"><div><SlidersHorizontal size={21} /><span><strong>Réflexion hybride</strong><small>Valeur récupérée depuis le client Ollama utilisé</small></span></div><code>{configuration.think_enabled === false ? "think=false" : configuration.think_enabled === true ? "think=true" : "Non disponible"}</code></div>
+        <div className="setting-row"><div><History size={21} /><span><strong>Reprise après interruption</strong><small>Sauvegarde des étapes de l’analyse</small></span></div><code>{configuration.checkpoint_enabled === true ? "active" : configuration.checkpoint_enabled === false ? "inactive" : "Non disponible"}</code></div>
+        <div className="setting-row"><div><ShieldCheck size={21} /><span><strong>Blocage des incohérences</strong><small>Compare les prix proposés au dernier cours vérifié</small></span></div><code>{configuration.price_consistency_check === true ? "actif" : configuration.price_consistency_check === false ? "inactif" : "Non disponible"}</code></div>
       </section>
     </main>
   );
@@ -521,16 +994,18 @@ export default function App() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [job, setJob] = useState(null);
   const [history, setHistory] = useState([]);
-  const [status, setStatus] = useState({ online: false, models: [], endpoint: "http://localhost:11434" });
+  const [status, setStatus] = useState({ online: false, models: [], endpoint: "", openai_endpoint: "", active_model: "", context_window_tokens: null, context_source: null, configuration: {} });
   const [menuOpen, setMenuOpen] = useState(false);
   const [loadingHistoryId, setLoadingHistoryId] = useState(null);
   const [historyError, setHistoryError] = useState("");
   const [pollWarning, setPollWarning] = useState("");
   const [historyJob, setHistoryJob] = useState(null);
+  const [capabilities, setCapabilities] = useState({ analysts: [], data_steps: [] });
+  const [capabilitiesError, setCapabilitiesError] = useState("");
 
   const analysisActive = Boolean(job && ["queued", "running"].includes(job.status));
 
-  const activeModel = useMemo(() => status.models?.find((item) => item.name === "qwen3:8b")?.name || "qwen3:8b", [status]);
+  const activeModel = useMemo(() => status.active_model || status.models?.[0]?.name || "Modèle non détecté", [status]);
 
   const loadStatus = async () => {
     try { setStatus(await api("/api/status")); } catch { setStatus((current) => ({ ...current, online: false })); }
@@ -538,10 +1013,28 @@ export default function App() {
   const loadHistory = async () => {
     try { setHistory((await api("/api/history")).items || []); } catch { setHistory([]); }
   };
+  const loadCapabilities = async () => {
+    try {
+      const payload = await api("/api/capabilities");
+      const analysts = Array.isArray(payload.analysts) ? payload.analysts : [];
+      const dataSteps = Array.isArray(payload.data_steps) ? payload.data_steps : [];
+      const ids = analysts.map((analyst) => analyst.id);
+      setCapabilities({ analysts, data_steps: dataSteps });
+      setCapabilitiesError("");
+      setForm((current) => {
+        const selected = current.analysts.filter((id) => ids.includes(id));
+        return { ...current, analysts: selected.length ? selected : ids };
+      });
+    } catch (error) {
+      setCapabilities({ analysts: [], data_steps: [] });
+      setCapabilitiesError(`Analystes indisponibles : ${error.message}`);
+    }
+  };
 
   useEffect(() => {
     loadStatus();
     loadHistory();
+    loadCapabilities();
     const historyId = new URLSearchParams(window.location.search).get("history");
     if (!historyId) return;
     setLoadingHistoryId(historyId);
@@ -619,11 +1112,11 @@ export default function App() {
       <Sidebar page={page} onPage={navigate} online={status.online} model={activeModel} analysisActive={analysisActive} open={menuOpen} onClose={() => setMenuOpen(false)} />
       {menuOpen ? <button className="menu-scrim" onClick={() => setMenuOpen(false)} aria-label="Fermer le menu" /> : null}
       <div className="content-shell">
-        {page === "analysis" ? <AnalysisPage form={form} setForm={setForm} job={job} online={status.online} pollWarning={pollWarning} onSubmit={submit} onReset={reset} /> : null}
+        {page === "analysis" ? <AnalysisPage form={form} setForm={setForm} job={job} online={status.online} analysts={capabilities.analysts} dataSteps={capabilities.data_steps} analystsError={capabilitiesError} pollWarning={pollWarning} onSubmit={submit} onReset={reset} /> : null}
         {page === "history" ? <HistoryPage history={history} loadingId={loadingHistoryId} error={historyError} onSelect={openHistory} /> : null}
         {page === "history-detail" && historyJob ? <ResultPage key={historyJob.id} job={historyJob} historical onBackHistory={() => navigate("history")} /> : null}
         {page === "models" ? <ModelsPage status={status} refresh={loadStatus} /> : null}
-        {page === "settings" ? <SettingsPage /> : null}
+        {page === "settings" ? <SettingsPage status={status} /> : null}
       </div>
     </div>
   );
