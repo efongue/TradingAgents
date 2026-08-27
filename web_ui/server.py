@@ -763,6 +763,19 @@ def parse_snapshot(snapshot: str) -> dict:
         close = float(close_text.replace(",", "")) if close_text else None
     except ValueError:
         close = None
+
+    recent_closes = []
+    closes_match = re.search(r"### Recent verified closes[^\n]*\n\n\| Date \| Close \|\n\|---\|---:\|\n([\s\S]*?)(?:\n\n|\Z)", snapshot)
+    if closes_match:
+        for line in closes_match.group(1).strip().splitlines():
+            row_match = re.search(r"\|\s*([0-9-]+)\s*\|\s*([0-9.,]+)\s*\|", line)
+            if row_match:
+                try:
+                    price = float(row_match.group(2).replace(",", ""))
+                    recent_closes.append(price)
+                except ValueError:
+                    pass
+
     return {
         "latest_date": latest_match.group(1) if latest_match else None,
         "close": close,
@@ -770,6 +783,8 @@ def parse_snapshot(snapshot: str) -> dict:
         "high": value("High"),
         "low": value("Low"),
         "volume": value("Volume"),
+        "sparkline": recent_closes,
+        "recent_closes": recent_closes,
         "raw": snapshot,
     }
 

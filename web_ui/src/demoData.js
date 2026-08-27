@@ -91,23 +91,23 @@ La prime de valorisation est amplement justifiée par la visibilité des revenus
 - **Allocation suggérée** : Surpondération dans un portefeuille diversifié Actions Croissance / Tech
 - **Seuil d'invalidation** : Clôture hebdomadaire sous le support majeur des 105 $`,
       snapshot: {
-        close: 128.45,
-        open: 126.10,
-        high: 129.80,
-        low: 125.75,
+        close: 227.26,
+        open: 224.50,
+        high: 229.80,
+        low: 223.75,
         volume: 48200000,
         market_cap: "3.16 T$",
         pe_ratio: "42.8",
-        sparkline: [110.2, 112.5, 111.8, 114.6, 116.0, 115.4, 118.9, 120.2, 119.5, 122.8, 124.0, 123.4, 125.1, 126.6, 125.9, 127.8, 128.45],
+        sparkline: [200.75, 206.64, 211.94, 219.22, 218.99, 223.96, 217.55, 217.50, 224.09, 225.30, 225.16, 225.01, 219.74, 217.56, 216.85, 214.72, 208.48, 213.05, 209.66, 227.26],
       },
       reliability: {
         verified: true,
         blocked: false,
-        verified_close: 128.45,
+        verified_close: 227.26,
         latest_date: "2026-08-27",
         block_reason: null,
         checks: [
-          { name: "Cours de clôture OHLCV", status: "ok", detail: "128,45 $ conforme aux flux de marché" },
+          { name: "Cours de clôture OHLCV", status: "ok", detail: "227,26 $ conforme aux flux de marché" },
           { name: "Vérification cohérence prix", status: "ok", detail: "Écart de 0,00 % avec le marché vérifié" },
           { name: "Données financières vérifiées", status: "ok", detail: "Rapports 10-Q et bilans récents validés" },
           { name: "Absence de split non ajusté", status: "ok", detail: "Historique ajusté certifié" },
@@ -115,7 +115,7 @@ La prime de valorisation est amplement justifiée par la visibilité des revenus
       },
       reports: {
         portfolio: `Décision du portefeuille : ACHETER FORT. Surpondérer la ligne avec un objectif moyen terme ambitieux.`,
-        market: `Tendance haussière confirmée. Support clé à 122,50 $, résistance immédiate à 132,00 $. Flux acheteurs dominants.`,
+        market: `Tendance haussière confirmée. Support clé à 215,00 $, résistance immédiate à 235,00 $. Flux acheteurs dominants.`,
         fundamentals: `Chiffre d'affaires trimestriel en progression de +84 % sur un an. Marge brute à 74,8 %. Bilan sans dette nette.`,
         news: `Nouveaux contrats d'envergure signés avec plusieurs gouvernements et leaders industriels pour des clusters de supercalculateurs.`,
         social: `Sentiment global extrêmement positif (82 % d'opinions favorables sur les forums d'analystes et développeurs).`,
@@ -146,74 +146,65 @@ La prime de valorisation est amplement justifiée par la visibilité des revenus
     is_demo: true,
     result: {
       display_decision: "ACCUMULER",
-      confidence: "Élevée (90 %)",
+      confidence: "Élevée (85 %)",
       consensus: {
         bullish: 82,
         neutral: 14,
         bearish: 4,
-        verdict: "Monétisation solide de la suite Microsoft 365 Copilot et accélération d'Azure Cloud.",
+        verdict: "Consolidation haussière durable portée par la monétisation de Copilot et les gains de parts de marché d'Azure.",
       },
       catalysts: [
-        "Croissance annuelle d'Azure supérieure à +30 % tirée par les workloads IA",
-        "Hausse de l'ARPU entreprise via l'adoption globale de Copilot",
-        "Résilience du flux de revenus d'abonnement récurrents (SaaS / Entreprise)",
+        "Augmentation de +31 % de l'ARPU sur les abonnements Microsoft 365 Copilot",
+        "Croissance de +29 % du chiffre d'affaires cloud Azure à taux de change constant",
+        "Partenariats de distribution élargis dans le secteur bancaire et la santé",
       ],
       risk_veto: {
         triggered: false,
-        level: "Très Faible",
-        summary: "Bilan forteresse AAA, flux de trésorerie régulier et diversification produit unique.",
+        level: "Faible",
+        summary: "Visibilité exceptionnelle sur les flux récurrents de trésorerie (ARR), risque d'exécution maîtrisé.",
       },
       analyst_scores: {
-        market: { score: 86, stance: "Haussier", note: "Consolidation saine au-dessus de la zone pivot des 430 $" },
-        fundamentals: { score: 94, stance: "Très Haussier", note: "Free Cash Flow annuel > 70 Md$, marge nette > 35 %" },
-        news: { score: 84, stance: "Favorable", note: "Adoption entreprise accélérée des outils de productivité" },
-        social: { score: 79, stance: "Favorable", note: "Perception de leader institutionnel incontournable" },
+        market: { score: 86, stance: "Haussier", note: "Rebond technique sur support SMA 50 jours" },
+        fundamentals: { score: 93, stance: "Très Solide", note: "Génération de cash-flow libre record de 74,1 Md$" },
+        news: { score: 81, stance: "Favorable", note: "Accords pluriannuels de cybersécurité signés" },
+        social: { score: 79, stance: "Positif", note: "Forte confiance des décideurs IT d'entreprise" },
       },
-      summary: `### Synthèse Exécutive : Microsoft Corporation (NASDAQ: MSFT)
+      summary: `### Synthèse Exécututive : Microsoft Corporation (NASDAQ: MSFT)
 
-Microsoft combine le profil de croissance d'un acteur cloud de pointe avec la solidité financière d'une forteresse mondiale. L'intégration de l'IA générative dans son écosystème logiciel confère un levier de prix significatif.
-
-#### Thèse d'investissement
-1. **Azure comme plateforme Cloud IA de référence** : Part de marché croissante face aux concurrents historiques.
-2. **Monétisation immédiate des bases installées** : Déploiement à grande échelle de Copilot dans Office 365.
-3. **Bilan AAA & politique de dividende pérenne** : Rendement total actionnaire sécurisé.
-
-#### Recommandation de positionnement
-- **Horizon** : Moyen / Long terme
-- **Stratégie** : Accumulation régulière, position de fond de portefeuille idéale.`,
+Microsoft combine une position dominante dans les logiciels de productivité d'entreprise avec un moteur de croissance cloud à forte rentabilité. Le consensus multi-agents recommande une stratégie d'accumulation progressive.`,
       complete_report: `# Rapport Exécutif d'Analyse Multi-Agents : Microsoft Corporation
 
 ## 1. Vue d'Ensemble & Décision
 - **Symbole** : MSFT (NASDAQ)
-- **Décision Finale** : ACCUMULER (Surpondérer)
-- **Indice de Confiance** : 90 %
+- **Décision Finale** : ACCUMULER (Achat Progressif)
+- **Indice de Confiance** : 85 %
 - **Consensus Multi-Agents** : 82 % Haussier / 14 % Neutre / 4 % Prudent
 
 ---
 
 ## 2. Synthèse des 4 Piliers d'Analyse
-- **Technique** : Support majeur testé et validé à 428 $. Tendance de fond résolument haussière.
-- **Fondamentaux** : Ratio cours/bénéfice à 33x justifié par la visibilité des flux récurrents et les marges élevées.
-- **Actualité & Catalyseurs** : Croissance des déploiements Azure OpenAI et partenariats stratégiques étendus.
-- **Sentiment & Réputation** : Marque de confiance absolue auprès des DSI et directeurs informatiques du Fortune 500.`,
+- **Technique** : Support majeur testé et validé à 485 $. Tendance de fond résolument haussière.
+- **Fondamentaux** : Multiple P/E en ligne avec la qualité du bilan et la récurrence des marges logicielles.
+- **Actualité & Catalyseurs** : Croissance soutenue des déploiements d'infrastructures d'inférence Azure.
+- **Sentiment & Réputation** : Marque de confiance absolue auprès des directeurs informatiques du Fortune 500.`,
       snapshot: {
-        close: 442.20,
-        open: 439.50,
-        high: 444.10,
-        low: 438.80,
+        close: 505.82,
+        open: 498.50,
+        high: 508.10,
+        low: 496.80,
         volume: 19400000,
         market_cap: "3.28 T$",
         pe_ratio: "33.4",
-        sparkline: [412.0, 415.5, 414.2, 418.0, 420.5, 419.0, 423.8, 425.2, 424.0, 428.1, 431.4, 430.2, 433.0, 436.5, 438.8, 440.5, 442.20],
+        sparkline: [463.85, 486.73, 491.88, 486.54, 498.92, 499.05, 505.11, 502.86, 491.50, 495.95, 494.47, 479.45, 480.73, 483.40, 481.15, 483.24, 487.31, 491.71, 496.37, 505.82],
       },
       reliability: {
         verified: true,
         blocked: false,
-        verified_close: 442.20,
+        verified_close: 505.82,
         latest_date: "2026-08-27",
         block_reason: null,
         checks: [
-          { name: "Cours de clôture OHLCV", status: "ok", detail: "442,20 $ conforme aux flux de marché" },
+          { name: "Cours de clôture OHLCV", status: "ok", detail: "505,82 $ conforme aux flux de marché" },
           { name: "Vérification cohérence prix", status: "ok", detail: "Écart de 0,00 % avec le marché vérifié" },
           { name: "Données financières vérifiées", status: "ok", detail: "Bilan et FCF vérifiés" },
         ],
@@ -251,81 +242,72 @@ Microsoft combine le profil de croissance d'un acteur cloud de pointe avec la so
     is_demo: true,
     result: {
       display_decision: "CONSERVER",
-      confidence: "Élevée (88 %)",
+      confidence: "Moyenne (68 %)",
       consensus: {
         bullish: 64,
-        neutral: 28,
-        bearish: 8,
-        verdict: "Croissance record du pôle Services, cycle de renouvellement matériel stable mais valorisation exigeante.",
+        neutral: 24,
+        bearish: 12,
+        verdict: "Maintien de la position sans surpondération immédiate compte tenu de la valorisation tendue.",
       },
       catalysts: [
-        "Marge brute du segment Services dépassant les 74 %",
-        "Rachats d'actions massifs (plus de 100 Md$ par an)",
-        "Fonctionnalités Apple Intelligence stimulant le renouvellement du parc mondial",
+        "Monétisation croissante de la base d'abonnés aux Services (iCloud, Apple Music, Pay)",
+        "Programme de rachat d'actions record de 110 Md$",
+        "Lancement progressif de nouvelles fonctionnalités d'intelligence embarquée",
       ],
       risk_veto: {
         triggered: false,
-        level: "Faible",
-        summary: "Dépendance au matériel et valorisation à 31x les bénéfices limitant le potentiel à court terme.",
+        level: "Modéré",
+        summary: "Croissance des ventes d'iPhone stabilisée, pression réglementaire sur les commissions de l'App Store.",
       },
       analyst_scores: {
-        market: { score: 72, stance: "Neutre / Haussier", note: "Oscillation dans une zone de range entre 220 $ et 235 $" },
-        fundamentals: { score: 85, stance: "Solide", note: "Rendement du capital exceptionnel, génération de cash record" },
-        news: { score: 76, stance: "Neutre", note: "Surveillance des ventes sur le marché asiatique" },
-        social: { score: 84, stance: "Favorable", note: "Fidélité de la marque la plus élevée du secteur grand public" },
+        market: { score: 72, stance: "Neutre / Positif", note: "Consolidation horizontale dans le canal 300-320 $" },
+        fundamentals: { score: 86, stance: "Très Solide", note: "Génération de cash-flow inégalée et marge brute de 46 %" },
+        news: { score: 68, stance: "Neutre", note: "Attente des prochaines annonces produits" },
+        social: { score: 78, stance: "Favorable", note: "Fidélité de marque exceptionnelle" },
       },
       summary: `### Synthèse Exécututive : Apple Inc. (NASDAQ: AAPL)
 
-Apple bénéficie d'une base installée active de plus de 2,2 milliards d'appareils, garantissant une croissance continue et très rentable de sa division Services. La valorisation actuelle invite toutefois à la neutralité tactique.
-
-#### Thèse d'investissement
-1. **Écosystème captif et marge Services en expansion** : Monétisation croissante par utilisateur.
-2. **Programme de retour de capital sans équivalent** : Soutien mécanique au bénéfice par action.
-3. **Cycle de mise à niveau IA sur les terminaux** : Catalyseur potentiel sur les prochains trimestres.
-
-#### Recommandation de positionnement
-- **Horizon** : Moyen terme
-- **Stratégie** : Conserver les positions existantes, attendre un repli sous 215 $ pour initier de nouveaux achats agressifs.`,
+Apple demeure une forteresse financière incontournable, caractérisée par une rentabilité élevée et une base d'utilisateurs ultra-fidèle. Les analystes préconisent le maintien de la pondération actuelle (Conserver) en attendant un catalyseur de réaccélération de la division matérielle.`,
       complete_report: `# Rapport Exécutif d'Analyse Multi-Agents : Apple Inc.
 
 ## 1. Vue d'Ensemble & Décision
 - **Symbole** : AAPL (NASDAQ)
 - **Décision Finale** : CONSERVER (Pondération Neutre)
-- **Indice de Confiance** : 88 %
-- **Consensus Multi-Agents** : 64 % Haussier / 28 % Neutre / 8 % Prudent
+- **Indice de Confiance** : 68 %
+- **Consensus Multi-Agents** : 64 % Haussier / 24 % Neutre / 12 % Prudent
 
 ---
 
 ## 2. Synthèse des 4 Piliers d'Analyse
-- **Technique** : Phase de consolidation horizontale. Absence de catalyseur technique immédiat pour casser la résistance des 238 $.
+- **Technique** : Phase de consolidation horizontale. Absence de catalyseur technique immédiat pour casser la résistance des 325 $.
 - **Fondamentaux** : Bilan extrêmement sain mais multiple P/E proche de ses sommets historiques de 10 ans.
 - **Actualité & Catalyseurs** : Déploiement progressif des fonctionnalités Apple Intelligence à l'international.
 - **Sentiment & Écosystème** : Taux de rétention des utilisateurs iOS supérieur à 94 %.`,
       snapshot: {
-        close: 227.80,
-        open: 226.40,
-        high: 229.10,
-        low: 225.90,
+        close: 313.62,
+        open: 310.40,
+        high: 315.80,
+        low: 309.20,
         volume: 38700000,
         market_cap: "3.44 T$",
         pe_ratio: "31.2",
-        sparkline: [232.5, 231.8, 233.0, 229.4, 228.9, 230.0, 227.8, 226.4, 228.1, 227.5, 229.2, 228.0, 229.9, 227.4, 227.80],
+        sparkline: [308.64, 303.16, 309.11, 310.73, 312.14, 313.06, 308.26, 304.91, 302.25, 305.26, 305.93, 305.59, 310.03, 316.83, 311.30, 309.35, 310.34, 309.90, 313.45, 313.62],
       },
       reliability: {
         verified: true,
         blocked: false,
-        verified_close: 227.80,
+        verified_close: 313.62,
         latest_date: "2026-08-27",
         block_reason: null,
         checks: [
-          { name: "Cours de clôture OHLCV", status: "ok", detail: "227,80 $ conforme aux flux de marché" },
+          { name: "Cours de clôture OHLCV", status: "ok", detail: "313,62 $ conforme aux flux de marché" },
           { name: "Vérification cohérence prix", status: "ok", detail: "Écart de 0,00 % avec le marché vérifié" },
           { name: "Données financières vérifiées", status: "ok", detail: "Comptabilité et retours de capitaux certifiés" },
         ],
       },
       reports: {
         portfolio: `Décision du portefeuille : CONSERVER. Maintenir l'exposition sans surpondérer au cours actuel.`,
-        market: `Range de négociation bien établi. Prises de bénéfices régulières autour des 235 $.`,
+        market: `Range de négociation bien établi. Prises de bénéfices régulières autour des 320 $.`,
         fundamentals: `La division Services représente désormais plus de 25 % du chiffre d'affaires total avec 74 % de marge brute.`,
         news: `Poursuite des ajustements réglementaires européens sur l'App Store, impact financier marginal.`,
         social: `Fidélité client inégalée, forte attente autour des innovations logicielles.`,

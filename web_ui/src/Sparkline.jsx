@@ -17,13 +17,18 @@ export default function Sparkline({
 }) {
   const gradientId = useId();
 
-  // Si aucune donnée n'est fournie, générer une courbe neutre / plate par défaut
+  // Extraction stricte des points réels sans invention de données synthétiques
   const points = useMemo(() => {
     if (Array.isArray(data) && data.length >= 2) {
-      return data.map((v) => Number(v)).filter((v) => !Number.isNaN(v));
+      const valid = data.map((v) => Number(v)).filter((v) => !Number.isNaN(v) && Number.isFinite(v));
+      if (valid.length >= 2) return valid;
     }
-    return [100, 101, 100.5, 102, 101.8, 103];
+    return null;
   }, [data]);
+
+  if (!points) {
+    return <span className="muted-text">—</span>;
+  }
 
   const { pathD, fillD, strokeColor, startPoint, endPoint, percentChange, detectedTone } = useMemo(() => {
     const n = points.length;

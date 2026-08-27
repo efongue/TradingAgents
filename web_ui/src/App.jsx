@@ -70,6 +70,7 @@ import {
   isNeutralDecision,
 } from "./decisionUtils.js";
 import DecisionBadge from "./DecisionBadge.jsx";
+import Sparkline from "./Sparkline.jsx";
 
 const NAV_ITEMS = [
   ["analysis", "Nouvelle analyse", TrendingUp],
@@ -953,6 +954,11 @@ function FinancialBento({ job, result }) {
         <span className={change === null ? "" : change >= 0 ? "bento-up" : "bento-down"}>
           {change === null ? "Variation non disponible" : `${change >= 0 ? "+" : ""}${change.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} % sur la séance`}
         </span>
+        {snapshot.sparkline && snapshot.sparkline.length >= 2 ? (
+          <div className="bento-sparkline-wrap" style={{ marginTop: "10px" }}>
+            <Sparkline data={snapshot.sparkline} width={150} height={34} showChange={false} />
+          </div>
+        ) : null}
         <small>{close !== null && reliability.latest_date ? `Séance du ${reliability.latest_date}` : "Date de séance non enregistrée"}</small>
       </motion.article>
 
