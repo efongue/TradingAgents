@@ -664,6 +664,33 @@ function AnalysisFailure({ job }) {
   );
 }
 
+function SkeletonLivePreview({ ticker }) {
+  return (
+    <motion.section
+      className="skeleton-live-preview"
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      aria-label={`Simulation du rapport pour ${ticker}`}
+    >
+      <div className="skeleton-hero-box skeleton-shimmer">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="skeleton-shimmer" style={{ width: "180px", height: "18px", borderRadius: "6px", background: "rgba(255,255,255,0.06)" }} />
+          <div className="skeleton-shimmer" style={{ width: "110px", height: "26px", borderRadius: "20px", background: "rgba(255,255,255,0.06)" }} />
+        </div>
+        <div className="skeleton-shimmer" style={{ width: "340px", height: "42px", margin: "14px 0", borderRadius: "8px", background: "rgba(255,255,255,0.08)" }} />
+        <div className="skeleton-shimmer" style={{ width: "100%", height: "8px", borderRadius: "4px", background: "rgba(255,255,255,0.06)" }} />
+      </div>
+      <div className="skeleton-bento-grid">
+        <div className="skeleton-card skeleton-shimmer" />
+        <div className="skeleton-card skeleton-shimmer" />
+        <div className="skeleton-card skeleton-shimmer" />
+      </div>
+    </motion.section>
+  );
+}
+
 function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analystsError, pollWarning, onSubmit, onReset, onSelectDemo, onAddToWatchlist, onCompareTicker, onShowToast }) {
   const busy = job && ["queued", "running"].includes(job.status);
   const result = job?.result;
@@ -689,6 +716,7 @@ function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analyst
         <Workflow job={job} defaultDataSteps={dataSteps} connectionUnverified={Boolean(pollWarning)} />
         <ReliabilityRail job={job} connectionUnverified={Boolean(pollWarning)} />
       </div>
+      {busy ? <SkeletonLivePreview ticker={form.ticker} /> : null}
     </main>
   );
 }
