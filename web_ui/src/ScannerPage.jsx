@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { api } from "./api.js";
 import { getCompanyName } from "./companyNames.js";
+import { getDecisionTone } from "./decisionUtils.js";
 import "./scanner.css";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -38,13 +39,6 @@ function formatPercent(value) {
   if (value === null || value === undefined) return "—";
   const numeric = Number(value);
   return `${numeric > 0 ? "+" : ""}${formatNumber(numeric)} %`;
-}
-
-function decisionTone(decision) {
-  const normalized = String(decision || "").toUpperCase();
-  if (["BUY", "ACHETER", "OVERWEIGHT"].includes(normalized)) return "positive";
-  if (["SELL", "VENDRE", "UNDERWEIGHT"].includes(normalized)) return "negative";
-  return "neutral";
 }
 
 function statusCopy(candidate) {
@@ -173,8 +167,8 @@ function RankingTable({ candidates, final = false, onOpenAnalysis, onAddToWatchl
               </td>
               <td data-label={final ? "Décision" : "État"}>
                 {final ? (
-                  <span className={`scanner-decision ${decisionTone(candidate.raw_decision)}`}>
-                    {candidate.display_decision || candidate.raw_decision || "—"}
+                  <span className={`scanner-decision ${getDecisionTone(candidate.raw_decision || candidate.display_decision)}`}>
+                    <i className="status-dot" /> {candidate.display_decision || candidate.raw_decision || "—"}
                   </span>
                 ) : <span className={`scanner-row-status ${candidate.analysis_status}`}>{statusCopy(candidate)}</span>}
               </td>

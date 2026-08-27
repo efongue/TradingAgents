@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
+import { getDecisionTone, isPositiveDecision } from "./decisionUtils.js";
 
 const DEFAULT_WATCHLIST = [
   { symbol: "NVDA", added_at: "2026-08-27", last_decision: "ACHETER FORT", note: "Leader calcul accéléré et datacenters" },
@@ -84,7 +85,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
   const bullishCount = items.filter((item) => {
     const demo = DEMO_ANALYSES[item.symbol];
     const decision = item.last_decision || (demo ? demo.result.display_decision : "");
-    return /ACHETER|BUY|ACCUMULER/.test(decision);
+    return isPositiveDecision(decision);
   }).length;
 
   return (
@@ -234,9 +235,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
               {filteredItems.map((item) => {
                 const demo = DEMO_ANALYSES[item.symbol];
                 const decision = item.last_decision || (demo ? demo.result.display_decision : "À analyser");
-                const isBuy = /ACHETER|BUY|ACCUMULER/.test(decision);
-                const isSell = /VENDRE|SELL/.test(decision);
-                const tone = isBuy ? "positive" : isSell ? "negative" : "neutral";
+                const tone = getDecisionTone(decision);
                 const consensus = demo?.result?.consensus || { bullish: 70, neutral: 20, bearish: 10 };
 
                 return (
@@ -327,9 +326,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
             {filteredItems.map((item) => {
               const demo = DEMO_ANALYSES[item.symbol];
               const decision = item.last_decision || (demo ? demo.result.display_decision : "À analyser");
-              const isBuy = /ACHETER|BUY|ACCUMULER/.test(decision);
-              const isSell = /VENDRE|SELL/.test(decision);
-              const tone = isBuy ? "positive" : isSell ? "negative" : "neutral";
+              const tone = getDecisionTone(decision);
               const consensus = demo?.result?.consensus || { bullish: 75, neutral: 15, bearish: 10 };
 
               return (

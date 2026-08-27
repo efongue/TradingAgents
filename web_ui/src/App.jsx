@@ -61,6 +61,7 @@ import ComparePage from "./ComparePage.jsx";
 import WatchlistPage, { addToWatchlist } from "./WatchlistPage.jsx";
 import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
+import { getDecisionTone, isPositiveDecision, isNegativeDecision, isNeutralDecision } from "./decisionUtils.js";
 
 const NAV_ITEMS = [
   ["analysis", "Nouvelle analyse", TrendingUp],
@@ -260,12 +261,12 @@ function InstantDemoBanner({ onSelectDemo }) {
       </div>
       <div className="ftux-cards-grid">
         {Object.values(DEMO_ANALYSES).map((demo) => {
-          const isBuy = /ACHETER|BUY|ACCUMULER/.test(demo.result.display_decision);
+          const tone = getDecisionTone(demo.result.display_decision);
           return (
             <motion.button
               key={demo.ticker}
               type="button"
-              className={`ftux-card ${isBuy ? "positive" : "neutral"}`}
+              className={`ftux-card ${tone}`}
               onClick={() => onSelectDemo(demo)}
               whileHover={{ y: -3, scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -277,7 +278,7 @@ function InstantDemoBanner({ onSelectDemo }) {
                     {getCompanyName(demo.ticker)}
                   </span>
                 </div>
-                <span className="ftux-decision-pill">{demo.result.display_decision}</span>
+                <span className={`ftux-decision-pill ${tone}`}>{demo.result.display_decision}</span>
               </div>
               <p>{demo.result.consensus?.verdict || demo.result.summary.slice(0, 85)}</p>
               <span className="ftux-explore-link">Explorer l’analyse &rarr;</span>
@@ -788,16 +789,18 @@ function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analyst
 }
 
 function DecisionHero({ result }) {
-  const blocked = result.reliability.blocked;
+  const blocked = result.reliability?.blocked;
+  const decision = result.display_decision || "ATTENDRE";
+  const tone = getDecisionTone(decision);
   const consensus = result.consensus || { bullish: 75, neutral: 15, bearish: 10 };
   const scores = result.analyst_scores;
 
   return (
-    <section className={`decision-hero ${blocked ? "blocked" : "clear"}`}>
+    <section className={`decision-hero ${blocked ? "blocked" : `tone-${tone}`}`}>
       <div className="decision-top-row">
         <div className="decision-main">
           <span>Décision du portefeuille</span>
-          <strong>{result.display_decision}</strong>
+          <strong className={`decision-text ${tone}`}>{decision}</strong>
         </div>
         <div className="confidence-copy">
           {blocked ? <AlertTriangle size={26} /> : <CheckCircle2 size={26} />}
@@ -874,9 +877,9 @@ function FinancialBento({ job, result }) {
   const snapshot = result.snapshot || {};
   const reliability = result.reliability || {};
   const decision = String(result.display_decision || "ATTENDRE").toUpperCase();
-  const positive = /ACHETER|BUY/.test(decision);
-  const negative = /VENDRE|SELL/.test(decision);
-  const tone = positive ? "positive" : negative ? "negative" : "neutral";
+  const tone = getDecisionTone(decision);
+  const positive = tone === "positive";
+  const negative = tone === "negative";
   const SignalIcon = positive ? ArrowUpRight : negative ? ArrowDownRight : Minus;
   const close = numberValue(snapshot.close ?? reliability.verified_close);
   const open = numberValue(snapshot.open);
@@ -1330,9 +1333,9 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
 
   const stats = useMemo(() => {
     const total = history.length;
-    const buyCount = history.filter((item) => /ACHETER|BUY|ACCUMULER/i.test(item.display_decision || "")).length;
-    const neutralCount = history.filter((item) => /CONSERVER|HOLD|NEUTRE/i.test(item.display_decision || "")).length;
-    const sellCount = history.filter((item) => /VENDRE|SELL|ALLÉGER/i.test(item.display_decision || "")).length;
+    const buyCount = history.filter((item) => isPositiveDecision(item.display_decision)).length;
+    const neutralCount = history.filter((item) => isNeutralDecision(item.display_decision)).length;
+    const sellCount = history.filter((item) => isNegativeDecision(item.display_decision)).length;
     const blockedCount = history.filter((item) => item.blocked).length;
     const controlledCount = total - blockedCount;
     const reliabilityRate = total ? Math.round((controlledCount / total) * 100) : 100;
@@ -1349,9 +1352,9 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
       if (!matchesSearch) return false;
 
       if (filterTone === "all") return true;
-      if (filterTone === "buy") return /ACHETER|BUY|ACCUMULER/i.test(item.display_decision || "");
-      if (filterTone === "neutral") return /CONSERVER|HOLD|NEUTRE/i.test(item.display_decision || "");
-      if (filterTone === "sell") return /VENDRE|SELL|ALLÉGER/i.test(item.display_decision || "");
+      if (filterTone === "buy") return isPositiveDecision(item.display_decision);
+      if (filterTone === "neutral") return isNeutralDecision(item.display_decision);
+      if (filterTone === "sell") return isNegativeDecision(item.display_decision);
       if (filterTone === "blocked") return Boolean(item.blocked);
       return true;
     });
@@ -1368,24 +1371,24 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
 
       {error ? <div className="connection-error"><AlertTriangle size={18} /> {error}</div> : null}
 
-      {/* Summary KPI Strip */}
+      {/* KPI Stats Strip */}
       <section className="history-kpi-strip">
-        <div className="history-kpi-card">
-          <History size={20} className="kpi-icon" />
+        <div className="history-kpi-box">
+          <History size={18} className="kpi-icon" />
           <div>
             <span className="kpi-label">Analyses Archivées</span>
             <strong className="kpi-value">{stats.total}</strong>
           </div>
         </div>
-        <div className="history-kpi-card">
-          <TrendingUp size={20} className="kpi-icon positive" />
+        <div className="history-kpi-box">
+          <TrendingUp size={18} className="kpi-icon positive" />
           <div>
             <span className="kpi-label">Signaux d'Achat</span>
             <strong className="kpi-value positive">{stats.buyCount}</strong>
           </div>
         </div>
-        <div className="history-kpi-card">
-          <ShieldCheck size={20} className="kpi-icon" />
+        <div className="history-kpi-box">
+          <ShieldCheck size={18} className="kpi-icon" />
           <div>
             <span className="kpi-label">Taux de Fiabilité</span>
             <strong className="kpi-value">{stats.reliabilityRate}%</strong>
@@ -1444,7 +1447,7 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
               className={`filter-chip ${filterTone === "blocked" ? "active" : ""}`}
               onClick={() => setFilterTone("blocked")}
             >
-              <AlertTriangle size={12} /> Alertes ({stats.blockedCount})
+              <i className="dot dot-blocked" /> Bloquées ({stats.blockedCount})
             </button>
           ) : null}
         </div>
@@ -1472,9 +1475,7 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
           {filteredHistory.length ? (
             filteredHistory.map((item) => {
               const decision = item.display_decision || "Non spécifié";
-              const isBuy = /ACHETER|BUY|ACCUMULER/i.test(decision);
-              const isSell = /VENDRE|SELL|ALLÉGER/i.test(decision);
-              const tone = isBuy ? "positive" : isSell ? "negative" : "neutral";
+              const tone = getDecisionTone(decision);
 
               return (
                 <motion.button

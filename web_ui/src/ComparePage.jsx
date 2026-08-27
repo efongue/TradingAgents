@@ -23,17 +23,7 @@ import {
 } from "lucide-react";
 import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
-
-function decisionTone(decision) {
-  const normalized = String(decision || "").toUpperCase();
-  if (["BUY", "ACHETER", "ACHETER FORT", "ACCUMULER", "OVERWEIGHT"].some((token) => normalized.includes(token))) {
-    return "positive";
-  }
-  if (["SELL", "VENDRE", "ALLÉGER", "UNDERWEIGHT"].some((token) => normalized.includes(token))) {
-    return "negative";
-  }
-  return "neutral";
-}
+import { getDecisionTone } from "./decisionUtils.js";
 
 function formatNumber(value, digits = 2) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
@@ -173,7 +163,7 @@ export default function ComparePage({ history = [], initialTickers = ["NVDA", "M
             const snapshot = result.snapshot || {};
             const consensus = result.consensus || { bullish: 70, neutral: 20, bearish: 10 };
             const decision = result.display_decision || "ATTENDRE";
-            const tone = decisionTone(decision);
+            const tone = getDecisionTone(decision);
             const scores = result.analyst_scores || {};
             const catalysts = result.catalysts || [];
             const riskVeto = result.risk_veto || {};
