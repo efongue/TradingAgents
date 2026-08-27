@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -61,7 +62,13 @@ function ScanProgress({ job }) {
   const activeAnalysis = job.active_analysis;
 
   return (
-    <section className="scanner-progress-panel" aria-live="polite">
+    <motion.section
+      className="scanner-progress-panel"
+      aria-live="polite"
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 350, damping: 28 }}
+    >
       <div className="scanner-panel-heading">
         <div>
           <span className={`scanner-status-dot ${job.status}`} />
@@ -76,21 +83,38 @@ function ScanProgress({ job }) {
         <div>
           <span><BarChart3 size={17} /> Univers préfiltré</span>
           <strong>{screening.completed} / {screening.total}</strong>
-          <div className="scanner-progress-track"><i style={{ width: `${screenWidth}%` }} /></div>
+          <div className="scanner-progress-track">
+            <motion.i
+              initial={{ width: 0 }}
+              animate={{ width: `${screenWidth}%` }}
+              transition={{ type: "spring", stiffness: 120, damping: 20 }}
+            />
+          </div>
         </div>
         <div>
           <span><ScanSearch size={17} /> Analyses TradingAgents</span>
           <strong>{analysis.completed} / {analysis.total}</strong>
-          <div className="scanner-progress-track"><i style={{ width: `${analysisWidth}%` }} /></div>
+          <div className="scanner-progress-track">
+            <motion.i
+              initial={{ width: 0 }}
+              animate={{ width: `${analysisWidth}%` }}
+              transition={{ type: "spring", stiffness: 120, damping: 20 }}
+            />
+          </div>
         </div>
       </div>
       {activeAnalysis ? (
-        <div className="scanner-active-analysis">
+        <motion.div
+          className="scanner-active-analysis"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+        >
           <LoaderCircle className="spin" size={18} />
           <span>{activeAnalysis.ticker} · {activeAnalysis.llm_calls || 0} appel(s) modèle · {activeAnalysis.tool_calls || 0} source(s)</span>
-        </div>
+        </motion.div>
       ) : null}
-    </section>
+    </motion.section>
   );
 }
 
@@ -111,9 +135,24 @@ function RankingTable({ candidates, final = false, onOpenAnalysis }) {
             {final ? <th aria-label="Rapport" /> : null}
           </tr>
         </thead>
-        <tbody>
+        <motion.tbody
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: { opacity: 1, transition: { staggerChildren: 0.04 } },
+          }}
+        >
           {candidates.map((candidate) => (
-            <tr key={candidate.symbol} className={candidate.blocked ? "blocked-row" : ""}>
+            <motion.tr
+              key={candidate.symbol}
+              className={candidate.blocked ? "blocked-row" : ""}
+              variants={{
+                hidden: { opacity: 0, y: 8 },
+                visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } },
+              }}
+              whileHover={{ backgroundColor: "rgba(255, 255, 255, 0.035)" }}
+            >
               <td data-label="Rang">{final ? candidate.final_rank || "—" : candidate.prefilter_rank}</td>
               <td data-label="Action">
                 <strong>{candidate.symbol}</strong>
@@ -135,19 +174,21 @@ function RankingTable({ candidates, final = false, onOpenAnalysis }) {
               <td data-label="Volatilité">{formatPercent(candidate.volatility)}</td>
               {final ? (
                 <td className="scanner-report-cell">
-                  <button
+                  <motion.button
                     type="button"
                     className="scanner-report-button"
                     onClick={() => onOpenAnalysis(candidate.analysis_job_id)}
                     disabled={!candidate.analysis_job_id}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
                   >
                     <ExternalLink size={15} /> Voir l’analyse
-                  </button>
+                  </motion.button>
                 </td>
               ) : null}
-            </tr>
+            </motion.tr>
           ))}
-        </tbody>
+        </motion.tbody>
       </table>
     </div>
   );
@@ -205,9 +246,15 @@ export default function ScannerPage({ online, job, setJob, onOpenAnalysis }) {
           <p>Préfiltrez un univers avec des données OHLCV, puis soumettez les meilleurs candidats à TradingAgents pour obtenir un classement final.</p>
         </div>
         {job && !busy ? (
-          <button type="button" className="secondary-button" onClick={() => setJob(null)}>
+          <motion.button
+            type="button"
+            className="secondary-button"
+            onClick={() => setJob(null)}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
             <RefreshCw size={17} /> Nouveau scan
-          </button>
+          </motion.button>
         ) : null}
       </div>
 
@@ -241,10 +288,16 @@ export default function ScannerPage({ online, job, setJob, onOpenAnalysis }) {
             {[1, 2, 3, 4, 5].map((value) => <option value={value} key={value}>Top {value}</option>)}
           </select>
         </label>
-        <button className="primary-button scanner-launch-button" type="submit" disabled={busy || !online || !catalog.length}>
+        <motion.button
+          className="primary-button scanner-launch-button"
+          type="submit"
+          disabled={busy || !online || !catalog.length}
+          whileHover={busy || !online ? {} : { scale: 1.02 }}
+          whileTap={busy || !online ? {} : { scale: 0.98 }}
+        >
           {busy ? <LoaderCircle className="spin" size={18} /> : <Play size={18} fill="currentColor" />}
           {busy ? "Scan en cours" : "Lancer le scanner"}
-        </button>
+        </motion.button>
       </form>
 
       <section className="scanner-method" aria-label="Méthode du scanner">
@@ -268,29 +321,43 @@ export default function ScannerPage({ online, job, setJob, onOpenAnalysis }) {
         </section>
       )}
 
-      {job?.ranking?.length ? (
-        <section className="scanner-results-panel">
-          <div className="scanner-panel-heading">
-            <div>
-              <CheckCircle2 size={21} />
-              <div><h2>Classement TradingAgents</h2><p>45 % préfiltre quantitatif · 55 % décision des agents</p></div>
+      <AnimatePresence>
+        {job?.ranking?.length ? (
+          <motion.section
+            className="scanner-results-panel"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          >
+            <div className="scanner-panel-heading">
+              <div>
+                <CheckCircle2 size={21} />
+                <div><h2>Classement TradingAgents</h2><p>45 % préfiltre quantitatif · 55 % décision des agents</p></div>
+              </div>
             </div>
-          </div>
-          <RankingTable candidates={job.ranking} final onOpenAnalysis={onOpenAnalysis} />
-        </section>
-      ) : null}
+            <RankingTable candidates={job.ranking} final onOpenAnalysis={onOpenAnalysis} />
+          </motion.section>
+        ) : null}
+      </AnimatePresence>
 
-      {job?.candidates?.length ? (
-        <section className="scanner-results-panel">
-          <div className="scanner-panel-heading">
-            <div>
-              <BarChart3 size={21} />
-              <div><h2>Préfiltrage de l’univers</h2><p>Momentum 20/60 jours, tendance, liquidité et volatilité</p></div>
+      <AnimatePresence>
+        {job?.candidates?.length ? (
+          <motion.section
+            className="scanner-results-panel"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          >
+            <div className="scanner-panel-heading">
+              <div>
+                <BarChart3 size={21} />
+                <div><h2>Préfiltrage de l’univers</h2><p>Momentum 20/60 jours, tendance, liquidité et volatilité</p></div>
+              </div>
             </div>
-          </div>
-          <RankingTable candidates={job.candidates} onOpenAnalysis={onOpenAnalysis} />
-        </section>
-      ) : null}
+            <RankingTable candidates={job.candidates} onOpenAnalysis={onOpenAnalysis} />
+          </motion.section>
+        ) : null}
+      </AnimatePresence>
 
       <div className="scanner-disclaimer">
         <ShieldCheck size={18} />

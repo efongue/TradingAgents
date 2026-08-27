@@ -247,10 +247,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .news-request-list span { color: #c8d1d5; font-size: 10px; }
 .parameter-empty { margin: 0 !important; color: #778791 !important; }
 .report-panel { min-width: 0; overflow: hidden; container: report-panel / inline-size; }
-.tabs { display: flex; overflow-x: auto; border-bottom: 1px solid var(--line); }
-.tabs button { height: 58px; display: inline-flex; align-items: center; gap: 8px; border: 0; border-bottom: 2px solid transparent; padding: 0 21px; background: transparent; color: #b5c0c8; white-space: nowrap; cursor: pointer; font-size: 12px; }
-.tabs button:hover { color: var(--text); background: rgba(255,255,255,.025); }
-.tabs button.active { border-bottom-color: var(--mint); color: var(--text); }
+.tabs { position: relative; display: flex; overflow-x: auto; border-bottom: 1px solid var(--line); padding: 0 6px; }
+.tabs button { position: relative; height: 58px; display: inline-flex; align-items: center; gap: 8px; border: 0; padding: 0 21px; background: transparent; color: #b5c0c8; white-space: nowrap; cursor: pointer; font-size: 12.5px; z-index: 1; transition: color 150ms ease; }
+.tabs button:hover { color: var(--text); }
+.tabs button.active { color: var(--mint); }
+.tab-active-pill { position: absolute; bottom: 0; left: 12px; right: 12px; height: 2.5px; background: var(--mint); border-radius: 2px; box-shadow: 0 0 10px rgba(98, 227, 202, 0.5); z-index: 2; }
+.quick-preset-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.quick-preset-chips > span { font-size: 11.5px; color: var(--muted); }
+.chip-button { border: 1px solid #2d3e4b; border-radius: 20px; padding: 4px 11px; background: rgba(255,255,255,.03); color: #cdd6db; font-size: 11px; font-weight: 600; cursor: pointer; transition: 150ms ease; }
+.chip-button:hover { border-color: var(--mint); color: var(--mint); background: rgba(98,227,202,.08); transform: translateY(-1px); }
+.chip-button:active { transform: scale(0.96); }
 .markdown-report-links { display: flex; align-items: flex-start; gap: 14px; margin: 18px 25px 4px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: 11px 12px; background: rgba(255,255,255,.018); }
 .markdown-report-links > span { padding-top: 5px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
 .markdown-report-links > div { display: flex; flex-wrap: wrap; gap: 7px; }

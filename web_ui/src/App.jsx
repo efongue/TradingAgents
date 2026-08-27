@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import "@fontsource/poppins/latin-600.css";
 import "@fontsource/poppins/latin-700.css";
 import ReactMarkdown from "react-markdown";
@@ -203,12 +204,15 @@ function Topbar({ onMenu, online, model }) {
 
 function AnalystToggle({ id, label, description, Icon, selected, disabled, onToggle }) {
   return (
-    <button
+    <motion.button
       type="button"
       className={`analyst-toggle ${selected ? "selected" : ""}`}
       onClick={() => onToggle(id)}
       disabled={disabled}
       aria-pressed={selected}
+      whileHover={disabled ? {} : { scale: 1.02, y: -2 }}
+      whileTap={disabled ? {} : { scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
     >
       <span className="analyst-card-icon" aria-hidden="true">
         {selected ? <Check size={17} /> : <Icon size={17} />}
@@ -217,7 +221,7 @@ function AnalystToggle({ id, label, description, Icon, selected, disabled, onTog
         <strong>{label}</strong>
         <small>{description}</small>
       </span>
-    </button>
+    </motion.button>
   );
 }
 
@@ -235,68 +239,94 @@ function AnalysisForm({ form, setForm, disabled, online, analysts, analystsError
     });
   };
 
+  const PRESETS = ["NVDA", "MSFT", "AAPL", "AMZN", "TSLA", "GOOGL"];
+
   return (
-    <form className="analysis-form" onSubmit={onSubmit}>
-      <label className="field symbol-field">
-        <span>Symbole</span>
-        <input
-          value={form.ticker}
-          onChange={(event) => setForm({ ...form, ticker: event.target.value.toUpperCase() })}
-          pattern="[A-Za-z0-9.\-^=]{1,20}"
-          required
-          disabled={disabled}
-          aria-label="Symbole boursier"
-        />
-      </label>
-      <label className="field date-field">
-        <span>Date d’analyse</span>
-        <input
-          type="date"
-          value={form.date}
-          max={new Date().toISOString().slice(0, 10)}
-          onChange={(event) => setForm({ ...form, date: event.target.value })}
-          required
-          disabled={disabled}
-        />
-      </label>
-      <label className="field depth-field">
-        <span>Profondeur</span>
-        <select
-          value={form.depth}
-          onChange={(event) => setForm({ ...form, depth: Number(event.target.value) })}
-          disabled={disabled}
+    <div className="analysis-form-wrap">
+      <form className="analysis-form" onSubmit={onSubmit}>
+        <label className="field symbol-field">
+          <span>Symbole</span>
+          <input
+            value={form.ticker}
+            onChange={(event) => setForm({ ...form, ticker: event.target.value.toUpperCase() })}
+            pattern="[A-Za-z0-9.\-^=]{1,20}"
+            required
+            disabled={disabled}
+            aria-label="Symbole boursier"
+          />
+        </label>
+        <label className="field date-field">
+          <span>Date d’analyse</span>
+          <input
+            type="date"
+            value={form.date}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(event) => setForm({ ...form, date: event.target.value })}
+            required
+            disabled={disabled}
+          />
+        </label>
+        <label className="field depth-field">
+          <span>Profondeur</span>
+          <select
+            value={form.depth}
+            onChange={(event) => setForm({ ...form, depth: Number(event.target.value) })}
+            disabled={disabled}
+          >
+            <option value="1">Rapide</option>
+            <option value="2">Moyenne</option>
+            <option value="3">Approfondie</option>
+          </select>
+        </label>
+        <fieldset className="analyst-field" disabled={disabled || analysts.length === 0}>
+          <legend>Analystes</legend>
+          <p className="analyst-field-copy">Choisissez les angles utilisés pour construire l’analyse.</p>
+          <div className="analyst-options">
+            {analysts.length ? analysts.map((analyst) => {
+              const Icon = ANALYST_ICONS[analyst.id] || Users;
+              return (
+                <AnalystToggle
+                  key={analyst.id}
+                  id={analyst.id}
+                  label={analyst.name}
+                  description={analyst.description}
+                  Icon={Icon}
+                  selected={form.analysts.includes(analyst.id)}
+                  disabled={disabled}
+                  onToggle={toggleAnalyst}
+                />
+              );
+            }) : <span className="analyst-options-status">{analystsError || "Chargement des analystes…"}</span>}
+          </div>
+        </fieldset>
+        <motion.button
+          className="primary-button launch-button"
+          type="submit"
+          disabled={disabled || !online || analysts.length === 0 || form.analysts.length === 0}
+          whileHover={disabled || !online ? {} : { scale: 1.02 }}
+          whileTap={disabled || !online ? {} : { scale: 0.98 }}
         >
-          <option value="1">Rapide</option>
-          <option value="2">Moyenne</option>
-          <option value="3">Approfondie</option>
-        </select>
-      </label>
-      <fieldset className="analyst-field" disabled={disabled || analysts.length === 0}>
-        <legend>Analystes</legend>
-        <p className="analyst-field-copy">Choisissez les angles utilisés pour construire l’analyse.</p>
-        <div className="analyst-options">
-          {analysts.length ? analysts.map((analyst) => {
-            const Icon = ANALYST_ICONS[analyst.id] || Users;
-            return (
-              <AnalystToggle
-                key={analyst.id}
-                id={analyst.id}
-                label={analyst.name}
-                description={analyst.description}
-                Icon={Icon}
-                selected={form.analysts.includes(analyst.id)}
-                disabled={disabled}
-                onToggle={toggleAnalyst}
-              />
-            );
-          }) : <span className="analyst-options-status">{analystsError || "Chargement des analystes…"}</span>}
-        </div>
-      </fieldset>
-      <button className="primary-button launch-button" type="submit" disabled={disabled || !online || analysts.length === 0 || form.analysts.length === 0}>
-        {disabled ? <LoaderCircle className="spin" size={18} /> : <Play size={18} fill="currentColor" />}
-        {disabled ? "Analyse en cours…" : "Analyser cette action"}
-      </button>
-    </form>
+          {disabled ? <LoaderCircle className="spin" size={18} /> : <Play size={18} fill="currentColor" />}
+          {disabled ? "Analyse en cours…" : "Analyser cette action"}
+        </motion.button>
+      </form>
+      <div className="quick-preset-chips" aria-label="Suggestions rapides de titres">
+        <span>Suggestions :</span>
+        {PRESETS.map((symbol) => (
+          <motion.button
+            key={symbol}
+            type="button"
+            className="chip-button"
+            disabled={disabled}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setForm((prev) => ({ ...prev, ticker: symbol }))}
+          >
+            {symbol}
+          </motion.button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -588,12 +618,19 @@ function DecisionHero({ result }) {
 function BentoInsight({ title, icon: Icon, source, className = "", fallback }) {
   const insights = reportHighlights(source, 2);
   return (
-    <article className={`bento-card bento-insight ${className}`}>
+    <motion.article
+      className={`bento-card bento-insight ${className}`}
+      variants={{
+        hidden: { opacity: 0, y: 12 },
+        visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } },
+      }}
+      whileHover={{ y: -2 }}
+    >
       <div className="bento-card-title"><Icon size={18} /><h3>{title}</h3></div>
       {insights.length ? (
         <ul>{insights.map((insight) => <li key={insight}>{insight}</li>)}</ul>
       ) : <p className="bento-empty">{fallback}</p>}
-    </article>
+    </motion.article>
   );
 }
 
@@ -620,9 +657,28 @@ function FinancialBento({ job, result }) {
   const debateSource = [reports.research_manager, reports.bull, reports.bear].filter(Boolean).join("\n");
   const riskSource = [reports.conservative, reports.neutral, reports.aggressive].filter(Boolean).join("\n");
 
+  const bentoVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.04, delayChildren: 0.02 },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 12 },
+    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } },
+  };
+
   return (
-    <section className={`financial-bento ${tone}`} aria-label={`Vue bento de l’analyse ${job.ticker}`}>
-      <article className="bento-card bento-hero">
+    <motion.section
+      className={`financial-bento ${tone}`}
+      aria-label={`Vue bento de l’analyse ${job.ticker}`}
+      variants={bentoVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.article className="bento-card bento-hero" variants={itemVariants} whileHover={{ y: -2 }}>
         <div className="bento-hero-copy">
           <span className="bento-label">Vue financière · {job.analysis_date}</span>
           <strong className="bento-ticker">{job.ticker}</strong>
@@ -633,27 +689,31 @@ function FinancialBento({ job, result }) {
           <span><SignalIcon size={34} strokeWidth={1.7} /></span>
           <small>{result.confidence}</small>
         </div>
-      </article>
+      </motion.article>
 
-      <article className="bento-card bento-price">
+      <motion.article className="bento-card bento-price" variants={itemVariants} whileHover={{ y: -2 }}>
         <span className="bento-label">Cours vérifié</span>
         <strong>{formatMarketNumber(close)}</strong>
         <span className={change === null ? "" : change >= 0 ? "bento-up" : "bento-down"}>
           {change === null ? "Variation non disponible" : `${change >= 0 ? "+" : ""}${change.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} % sur la séance`}
         </span>
         <small>{close !== null && reliability.latest_date ? `Séance du ${reliability.latest_date}` : "Date de séance non enregistrée"}</small>
-      </article>
+      </motion.article>
 
-      <article className={`bento-card bento-quality ${reliability.blocked ? "blocked" : "verified"}`}>
+      <motion.article className={`bento-card bento-quality ${reliability.blocked ? "blocked" : "verified"}`} variants={itemVariants} whileHover={{ y: -2 }}>
         {reliability.blocked ? <AlertTriangle size={27} /> : <ShieldCheck size={27} />}
         <strong>{reliability.blocked ? "Contrôle bloquant" : "Données contrôlées"}</strong>
         <p>{reliability.block_reason || "Aucune incohérence critique enregistrée."}</p>
-      </article>
+      </motion.article>
 
-      <article className="bento-card bento-range">
+      <motion.article className="bento-card bento-range" variants={itemVariants} whileHover={{ y: -2 }}>
         <div className="bento-card-title"><BarChart3 size={18} /><h3>Fourchette de séance</h3></div>
         <div className="bento-range-track" aria-label={`Position du cours dans la fourchette : ${Math.round(rangePosition)} %`}>
-          <i style={{ left: `${rangePosition}%` }} />
+          <motion.i
+            initial={{ left: "0%" }}
+            animate={{ left: `${rangePosition}%` }}
+            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+          />
         </div>
         <dl>
           <div><dt>Plus bas</dt><dd>{formatMarketNumber(low)}</dd></div>
@@ -661,7 +721,7 @@ function FinancialBento({ job, result }) {
           <div><dt>Plus haut</dt><dd>{formatMarketNumber(high)}</dd></div>
           <div><dt>Volume</dt><dd>{formatMarketNumber(volume, 0)}</dd></div>
         </dl>
-      </article>
+      </motion.article>
 
       <BentoInsight
         title="Signal marché"
@@ -698,7 +758,7 @@ function FinancialBento({ job, result }) {
         className="bento-risk"
         fallback="Aucune analyse de risque n’est disponible."
       />
-    </section>
+    </motion.section>
   );
 }
 
@@ -892,11 +952,11 @@ function ResultPage({ job, onReset, historical = false, onBackHistory }) {
         <div className="heading-actions">
           {historical ? (
             <>
-              <button className="secondary-button" onClick={onBackHistory}><ArrowLeft size={18} /> Retour à l’historique</button>
-              <a className="secondary-button" href={`/?history=${encodeURIComponent(job.id)}`} target="_blank" rel="noreferrer"><ExternalLink size={18} /> Ouvrir dans un nouvel onglet</a>
+              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="secondary-button" onClick={onBackHistory}><ArrowLeft size={18} /> Retour à l’historique</motion.button>
+              <motion.a whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="secondary-button" href={`/?history=${encodeURIComponent(job.id)}`} target="_blank" rel="noreferrer"><ExternalLink size={18} /> Ouvrir dans un nouvel onglet</motion.a>
             </>
-          ) : <button className="secondary-button" onClick={onReset}><Plus size={18} /> Nouvelle analyse</button>}
-          <a className="primary-button" href={`/api/jobs/${job.id}/report`}><FileText size={18} /> Ouvrir le rapport</a>
+          ) : <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="secondary-button" onClick={onReset}><Plus size={18} /> Nouvelle analyse</motion.button>}
+          <motion.a whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="primary-button" href={`/api/jobs/${job.id}/report`}><FileText size={18} /> Ouvrir le rapport</motion.a>
         </div>
       </div>
       <DecisionHero result={result} />
@@ -904,11 +964,27 @@ function ResultPage({ job, onReset, historical = false, onBackHistory }) {
       <div className="result-grid">
         <section className="report-panel">
           <div className="tabs" role="tablist" aria-label="Sections du rapport">
-            {TAB_ITEMS.map(([id, label, Icon]) => (
-              <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)} role="tab" aria-selected={tab === id}>
-                <Icon size={18} /> {label}
-              </button>
-            ))}
+            {TAB_ITEMS.map(([id, label, Icon]) => {
+              const active = tab === id;
+              return (
+                <button
+                  key={id}
+                  className={active ? "active" : ""}
+                  onClick={() => setTab(id)}
+                  role="tab"
+                  aria-selected={active}
+                >
+                  <Icon size={18} /> {label}
+                  {active && (
+                    <motion.div
+                      layoutId="activeTabPill"
+                      className="tab-active-pill"
+                      transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
           {result.reliability.blocked ? (
             <div className="inconsistency-banner">
@@ -917,7 +993,17 @@ function ResultPage({ job, onReset, historical = false, onBackHistory }) {
               <span>Bloquant</span>
             </div>
           ) : null}
-          <ReportContent job={job} result={result} tab={tab} />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
+              <ReportContent job={job} result={result} tab={tab} />
+            </motion.div>
+          </AnimatePresence>
         </section>
         <ReliabilityRail result={result} />
       </div>
@@ -932,11 +1018,31 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
       {error ? <div className="connection-error"><AlertTriangle size={18} /> {error}</div> : null}
       <section className="table-panel">
         <div className="table-head"><span>Action</span><span>Date analysée</span><span>Décision</span><span>Fiabilité</span><span>Créée</span></div>
-        {history.length ? history.map((item) => (
-          <button className="table-row" key={item.id} onClick={() => onSelect(item)} disabled={loadingId === item.id} aria-label={`Ouvrir l’analyse ${item.ticker} du ${item.analysis_date}`}>
-            <strong>{item.ticker}</strong><span>{item.analysis_date}</span><span>{item.display_decision || "—"}</span><span className={item.blocked ? "warn-text" : "ok-text"}>{item.blocked ? "Bloquée" : "Contrôlée"}</span><span className="history-created">{item.created_at}{loadingId === item.id ? <LoaderCircle className="spin" size={17} /> : <ChevronRight size={17} />}</span>
-          </button>
-        )) : <div className="empty-state"><History size={32} /><strong>Aucune analyse enregistrée</strong><span>Votre première analyse apparaîtra ici.</span></div>}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: { opacity: 1, transition: { staggerChildren: 0.035 } },
+          }}
+        >
+          {history.length ? history.map((item) => (
+            <motion.button
+              className="table-row"
+              key={item.id}
+              onClick={() => onSelect(item)}
+              disabled={loadingId === item.id}
+              aria-label={`Ouvrir l’analyse ${item.ticker} du ${item.analysis_date}`}
+              variants={{
+                hidden: { opacity: 0, y: 6 },
+                visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } },
+              }}
+              whileHover={{ backgroundColor: "rgba(98, 227, 202, 0.04)" }}
+            >
+              <strong>{item.ticker}</strong><span>{item.analysis_date}</span><span>{item.display_decision || "—"}</span><span className={item.blocked ? "warn-text" : "ok-text"}>{item.blocked ? "Bloquée" : "Contrôlée"}</span><span className="history-created">{item.created_at}{loadingId === item.id ? <LoaderCircle className="spin" size={17} /> : <ChevronRight size={17} />}</span>
+            </motion.button>
+          )) : <div className="empty-state"><History size={32} /><strong>Aucune analyse enregistrée</strong><span>Votre première analyse apparaîtra ici.</span></div>}
+        </motion.div>
       </section>
     </main>
   );
@@ -1178,18 +1284,50 @@ export default function App() {
     }
   };
 
+  const PAGE_VARIANTS = {
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } },
+    exit: { opacity: 0, y: -6, transition: { duration: 0.14, ease: [0.7, 0, 0.84, 0] } },
+  };
+
   return (
     <div className="app-shell">
       <Topbar onMenu={() => setMenuOpen(true)} online={status.online} model={activeModel} />
       <Sidebar page={page} onPage={navigate} online={status.online} model={activeModel} provider={status.provider_name || "LLM"} analysisActive={analysisActive} scanActive={scanActive} open={menuOpen} onClose={() => setMenuOpen(false)} />
       {menuOpen ? <button className="menu-scrim" onClick={() => setMenuOpen(false)} aria-label="Fermer le menu" /> : null}
       <div className="content-shell">
-        {page === "analysis" ? <AnalysisPage form={form} setForm={setForm} job={job} online={status.online} analysts={capabilities.analysts} dataSteps={capabilities.data_steps} analystsError={capabilitiesError} pollWarning={pollWarning} onSubmit={submit} onReset={reset} /> : null}
-        {page === "scanner" ? <ScannerPage online={status.online} job={scanJob} setJob={setScanJob} onOpenAnalysis={(analysisJobId) => openHistory({ id: analysisJobId })} /> : null}
-        {page === "history" ? <HistoryPage history={history} loadingId={loadingHistoryId} error={historyError} onSelect={openHistory} /> : null}
-        {page === "history-detail" && historyJob ? <ResultPage key={historyJob.id} job={historyJob} historical onBackHistory={() => navigate("history")} /> : null}
-        {page === "models" ? <ModelsPage status={status} refresh={loadStatus} /> : null}
-        {page === "settings" ? <SettingsPage status={status} /> : null}
+        <AnimatePresence mode="wait">
+          {page === "analysis" ? (
+            <motion.div key="analysis" variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
+              <AnalysisPage form={form} setForm={setForm} job={job} online={status.online} analysts={capabilities.analysts} dataSteps={capabilities.data_steps} analystsError={capabilitiesError} pollWarning={pollWarning} onSubmit={submit} onReset={reset} />
+            </motion.div>
+          ) : null}
+          {page === "scanner" ? (
+            <motion.div key="scanner" variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
+              <ScannerPage online={status.online} job={scanJob} setJob={setScanJob} onOpenAnalysis={(analysisJobId) => openHistory({ id: analysisJobId })} />
+            </motion.div>
+          ) : null}
+          {page === "history" ? (
+            <motion.div key="history" variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
+              <HistoryPage history={history} loadingId={loadingHistoryId} error={historyError} onSelect={openHistory} />
+            </motion.div>
+          ) : null}
+          {page === "history-detail" && historyJob ? (
+            <motion.div key={`history-detail-${historyJob.id}`} variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
+              <ResultPage key={historyJob.id} job={historyJob} historical onBackHistory={() => navigate("history")} />
+            </motion.div>
+          ) : null}
+          {page === "models" ? (
+            <motion.div key="models" variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
+              <ModelsPage status={status} refresh={loadStatus} />
+            </motion.div>
+          ) : null}
+          {page === "settings" ? (
+            <motion.div key="settings" variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
+              <SettingsPage status={status} />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
     </div>
   );
