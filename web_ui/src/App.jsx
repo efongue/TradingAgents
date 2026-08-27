@@ -20,6 +20,7 @@ import {
   Bot,
   Box,
   BriefcaseBusiness,
+  Calendar,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -45,6 +46,7 @@ import {
   RefreshCw,
   Scale,
   ScanSearch,
+  Search,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -1253,36 +1255,225 @@ function ResultPage({ job, onReset, historical = false, onBackHistory, onAddToWa
 }
 
 function HistoryPage({ history, loadingId, error, onSelect }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterTone, setFilterTone] = useState("all");
+
+  const stats = useMemo(() => {
+    const total = history.length;
+    const buyCount = history.filter((item) => /ACHETER|BUY|ACCUMULER/i.test(item.display_decision || "")).length;
+    const neutralCount = history.filter((item) => /CONSERVER|HOLD|NEUTRE/i.test(item.display_decision || "")).length;
+    const sellCount = history.filter((item) => /VENDRE|SELL|ALLÉGER/i.test(item.display_decision || "")).length;
+    const blockedCount = history.filter((item) => item.blocked).length;
+    const controlledCount = total - blockedCount;
+    const reliabilityRate = total ? Math.round((controlledCount / total) * 100) : 100;
+    return { total, buyCount, neutralCount, sellCount, blockedCount, reliabilityRate };
+  }, [history]);
+
+  const filteredHistory = useMemo(() => {
+    return history.filter((item) => {
+      const matchesSearch = !searchTerm.trim() ||
+        item.ticker.toUpperCase().includes(searchTerm.trim().toUpperCase()) ||
+        item.analysis_date.includes(searchTerm.trim()) ||
+        (item.display_decision && item.display_decision.toUpperCase().includes(searchTerm.trim().toUpperCase()));
+
+      if (!matchesSearch) return false;
+
+      if (filterTone === "all") return true;
+      if (filterTone === "buy") return /ACHETER|BUY|ACCUMULER/i.test(item.display_decision || "");
+      if (filterTone === "neutral") return /CONSERVER|HOLD|NEUTRE/i.test(item.display_decision || "");
+      if (filterTone === "sell") return /VENDRE|SELL|ALLÉGER/i.test(item.display_decision || "");
+      if (filterTone === "blocked") return Boolean(item.blocked);
+      return true;
+    });
+  }, [history, searchTerm, filterTone]);
+
   return (
-    <main className="page simple-page">
-      <div className="page-heading"><div><h1>Historique</h1><p>Retrouvez vos analyses précédentes. Elles restent enregistrées sur cet ordinateur.</p></div></div>
+    <main className="page history-page">
+      <div className="page-heading">
+        <div>
+          <h1>Historique & Journal d'Audit</h1>
+          <p>Retrouvez l'ensemble de vos analyses multi-agents antérieures enregistrées localement.</p>
+        </div>
+      </div>
+
       {error ? <div className="connection-error"><AlertTriangle size={18} /> {error}</div> : null}
-      <section className="table-panel">
-        <div className="table-head"><span>Action</span><span>Date analysée</span><span>Décision</span><span>Fiabilité</span><span>Créée</span></div>
+
+      {/* Summary KPI Strip */}
+      <section className="history-kpi-strip">
+        <div className="history-kpi-card">
+          <History size={20} className="kpi-icon" />
+          <div>
+            <span className="kpi-label">Analyses Archivées</span>
+            <strong className="kpi-value">{stats.total}</strong>
+          </div>
+        </div>
+        <div className="history-kpi-card">
+          <TrendingUp size={20} className="kpi-icon positive" />
+          <div>
+            <span className="kpi-label">Signaux d'Achat</span>
+            <strong className="kpi-value positive">{stats.buyCount}</strong>
+          </div>
+        </div>
+        <div className="history-kpi-card">
+          <ShieldCheck size={20} className="kpi-icon" />
+          <div>
+            <span className="kpi-label">Taux de Fiabilité</span>
+            <strong className="kpi-value">{stats.reliabilityRate}%</strong>
+          </div>
+        </div>
+      </section>
+
+      {/* Search & Filter Toolbar */}
+      <section className="history-toolbar">
+        <div className="history-search-input">
+          <Search size={15} />
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Filtrer par symbole ou date (ex: NVDA, 2026)..."
+          />
+          {searchTerm ? (
+            <button type="button" onClick={() => setSearchTerm("")} aria-label="Effacer la recherche">
+              <X size={13} />
+            </button>
+          ) : null}
+        </div>
+
+        <div className="history-filter-chips">
+          <button
+            type="button"
+            className={`filter-chip ${filterTone === "all" ? "active" : ""}`}
+            onClick={() => setFilterTone("all")}
+          >
+            Tous ({stats.total})
+          </button>
+          <button
+            type="button"
+            className={`filter-chip ${filterTone === "buy" ? "active" : ""}`}
+            onClick={() => setFilterTone("buy")}
+          >
+            <i className="dot dot-buy" /> Achats ({stats.buyCount})
+          </button>
+          <button
+            type="button"
+            className={`filter-chip ${filterTone === "neutral" ? "active" : ""}`}
+            onClick={() => setFilterTone("neutral")}
+          >
+            <i className="dot dot-neutral" /> Neutres ({stats.neutralCount})
+          </button>
+          <button
+            type="button"
+            className={`filter-chip ${filterTone === "sell" ? "active" : ""}`}
+            onClick={() => setFilterTone("sell")}
+          >
+            <i className="dot dot-sell" /> Ventes ({stats.sellCount})
+          </button>
+          {stats.blockedCount > 0 ? (
+            <button
+              type="button"
+              className={`filter-chip ${filterTone === "blocked" ? "active" : ""}`}
+              onClick={() => setFilterTone("blocked")}
+            >
+              <AlertTriangle size={12} /> Alertes ({stats.blockedCount})
+            </button>
+          ) : null}
+        </div>
+      </section>
+
+      {/* History Table Panel */}
+      <section className="history-table-panel">
+        <div className="history-table-head">
+          <span>Instrument</span>
+          <span>Date Marché</span>
+          <span>Décision IA</span>
+          <span>Fiabilité</span>
+          <span>Horodatage</span>
+          <span style={{ textAlign: "right" }}>Action</span>
+        </div>
+
         <motion.div
           initial="hidden"
           animate="visible"
           variants={{
             hidden: { opacity: 0 },
-            visible: { opacity: 1, transition: { staggerChildren: 0.035 } },
+            visible: { opacity: 1, transition: { staggerChildren: 0.03 } },
           }}
         >
-          {history.length ? history.map((item) => (
-            <motion.button
-              className="table-row"
-              key={item.id}
-              onClick={() => onSelect(item)}
-              disabled={loadingId === item.id}
-              aria-label={`Ouvrir l’analyse ${item.ticker} du ${item.analysis_date}`}
-              variants={{
-                hidden: { opacity: 0, y: 6 },
-                visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } },
-              }}
-              whileHover={{ backgroundColor: "rgba(98, 227, 202, 0.04)" }}
-            >
-              <strong>{item.ticker}</strong><span>{item.analysis_date}</span><span>{item.display_decision || "—"}</span><span className={item.blocked ? "warn-text" : "ok-text"}>{item.blocked ? "Bloquée" : "Contrôlée"}</span><span className="history-created">{item.created_at}{loadingId === item.id ? <LoaderCircle className="spin" size={17} /> : <ChevronRight size={17} />}</span>
-            </motion.button>
-          )) : <div className="empty-state"><History size={32} /><strong>Aucune analyse enregistrée</strong><span>Votre première analyse apparaîtra ici.</span></div>}
+          {filteredHistory.length ? (
+            filteredHistory.map((item) => {
+              const decision = item.display_decision || "Non spécifié";
+              const isBuy = /ACHETER|BUY|ACCUMULER/i.test(decision);
+              const isSell = /VENDRE|SELL|ALLÉGER/i.test(decision);
+              const tone = isBuy ? "positive" : isSell ? "negative" : "neutral";
+
+              return (
+                <motion.button
+                  className="history-table-row"
+                  key={item.id}
+                  onClick={() => onSelect(item)}
+                  disabled={loadingId === item.id}
+                  aria-label={`Ouvrir l’analyse ${item.ticker} du ${item.analysis_date}`}
+                  variants={{
+                    hidden: { opacity: 0, y: 6 },
+                    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } },
+                  }}
+                  whileHover={{ backgroundColor: "rgba(45, 212, 191, 0.035)", x: 2 }}
+                >
+                  <div className="history-ticker-cell">
+                    <strong className="ticker-badge">{item.ticker}</strong>
+                  </div>
+
+                  <div className="history-date-cell">
+                    <Calendar size={13} className="date-icon" />
+                    <span>{item.analysis_date}</span>
+                  </div>
+
+                  <div>
+                    <span className={`history-decision-pill ${tone}`}>
+                      <i className="status-dot" /> {decision}
+                    </span>
+                  </div>
+
+                  <div>
+                    {item.blocked ? (
+                      <span className="history-reliability-pill warn">
+                        <AlertTriangle size={12} /> Bloquée
+                      </span>
+                    ) : (
+                      <span className="history-reliability-pill ok">
+                        <CheckCircle2 size={12} /> Contrôlée
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="history-created-cell">
+                    <Clock3 size={13} className="time-icon" />
+                    <span>{item.created_at}</span>
+                  </div>
+
+                  <div className="history-action-cell">
+                    {loadingId === item.id ? (
+                      <LoaderCircle className="spin" size={16} />
+                    ) : (
+                      <span className="history-view-btn">
+                        Consulter <ChevronRight size={14} />
+                      </span>
+                    )}
+                  </div>
+                </motion.button>
+              );
+            })
+          ) : (
+            <div className="empty-state">
+              <History size={36} />
+              <strong>{searchTerm || filterTone !== "all" ? "Aucune analyse trouvée" : "Aucune analyse enregistrée"}</strong>
+              <span>
+                {searchTerm || filterTone !== "all"
+                  ? "Modifiez vos critères de recherche pour retrouver les rapports archivés."
+                  : "Lancez votre première analyse multi-agents pour qu'elle s'enregistre automatiquement dans votre historique."}
+              </span>
+            </div>
+          )}
         </motion.div>
       </section>
     </main>

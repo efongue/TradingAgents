@@ -875,6 +875,256 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 .simple-page { max-width: 1180px; }
+
+/* ==========================================================================
+   History Page Styles (Redesigned)
+   ========================================================================== */
+.history-page {
+  max-width: 1400px;
+}
+
+.history-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.history-kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  background: rgba(9, 14, 21, 0.78);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--inner-highlight);
+}
+
+.history-toolbar {
+  margin-bottom: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 14px 20px;
+  background: rgba(9, 14, 21, 0.82);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--inner-highlight);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.history-search-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.history-search-input svg {
+  position: absolute;
+  left: 12px;
+  color: var(--mint);
+  pointer-events: none;
+}
+.history-search-input input {
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 0 32px 0 36px;
+  background: #060a0f;
+  color: var(--text);
+  font-size: 13px;
+  width: 290px;
+  transition: all 140ms ease;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.history-search-input input:focus {
+  border-color: var(--mint);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.18);
+  width: 320px;
+}
+.history-search-input button {
+  position: absolute;
+  right: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.history-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+.filter-chip:hover {
+  border-color: rgba(45, 212, 191, 0.3);
+  color: var(--text);
+}
+.filter-chip.active {
+  background: var(--mint-soft);
+  color: var(--mint);
+  border-color: var(--mint);
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.dot-buy { background: var(--mint); }
+.dot-neutral { background: #94a3b8; }
+.dot-sell { background: var(--danger); }
+
+.history-table-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(9, 14, 21, 0.84);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--inner-highlight), 0 10px 30px rgba(0, 0, 0, 0.35);
+  overflow-x: auto;
+}
+.history-table-head, .history-table-row {
+  display: grid;
+  grid-template-columns: 140px 150px 1.4fr 140px 180px 120px;
+  gap: 16px;
+  align-items: center;
+  padding: 0 22px;
+}
+.history-table-head {
+  min-height: 52px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.history-table-row {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  text-align: left;
+  color: #cbd5e1;
+  cursor: pointer;
+  min-height: 64px;
+  transition: background 140ms ease, transform 140ms ease;
+}
+.history-table-row:hover {
+  background: rgba(45, 212, 191, 0.035);
+}
+.history-table-row:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+.history-table-row:last-child {
+  border-bottom: 0;
+}
+.history-ticker-cell .ticker-badge {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.history-date-cell, .history-created-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.date-icon, .time-icon {
+  color: #64748b;
+  flex: 0 0 auto;
+}
+.history-decision-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+.history-decision-pill .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.history-decision-pill.positive {
+  background: var(--mint-soft);
+  color: var(--mint);
+  border: 1px solid rgba(45, 212, 191, 0.35);
+}
+.history-decision-pill.positive .status-dot { background: var(--mint); box-shadow: 0 0 6px rgba(45, 212, 191, 0.6); }
+
+.history-decision-pill.negative {
+  background: rgba(244, 63, 94, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+.history-decision-pill.negative .status-dot { background: var(--danger); }
+
+.history-decision-pill.neutral {
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.history-decision-pill.neutral .status-dot { background: #94a3b8; }
+
+.history-reliability-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.history-reliability-pill.ok {
+  color: var(--mint);
+  background: rgba(45, 212, 191, 0.08);
+  border: 1px solid rgba(45, 212, 191, 0.25);
+}
+.history-reliability-pill.warn {
+  color: var(--amber);
+  background: var(--amber-soft);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.history-action-cell {
+  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+}
+.history-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--mint);
+}
+
 .table-panel, .model-list-panel, .settings-panel { overflow: hidden; }
 .table-head, .table-row { display: grid; grid-template-columns: 1fr 1.2fr 1fr 1fr 1.2fr; gap: 18px; align-items: center; min-height: 57px; padding: 0 22px; }
 .table-head { border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
