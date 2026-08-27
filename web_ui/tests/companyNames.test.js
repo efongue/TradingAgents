@@ -38,4 +38,7 @@ test("searchStocks returns matching stocks for tickers and company names", () =>
 
   const airbusMatches = searchStocks("Airbus");
   assert.ok(airbusMatches.some((s) => s.ticker === "AIR.PA" || s.ticker === "AIR"));
+
+  const synopsysMatches = searchStocks("Synopsys");
+  assert.ok(synopsysMatches.some((s) => s.ticker === "SNPS"));
 });
