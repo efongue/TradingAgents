@@ -44,13 +44,18 @@ function formatPercent(value) {
   return `${numeric > 0 ? "+" : ""}${formatNumber(numeric)} %`;
 }
 
-function statusCopy(candidate) {
+function statusCopy(candidate, jobStatus) {
+  if (jobStatus === "error" || jobStatus === "interrupted") {
+    if (candidate.analysis_status === "running" || candidate.analysis_status === "queued" || candidate.analysis_status === "error") {
+      return "Interrompu";
+    }
+  }
   return {
     queued: "À analyser",
     running: "Analyse en cours",
     complete: "Analysé",
     blocked: "Contrôle bloquant",
-    error: "Échec de l’analyse",
+    error: "Interrompu",
     prefiltered: "Préfiltré",
   }[candidate.analysis_status] || "Préfiltré";
 }
@@ -162,7 +167,7 @@ function ScannerWatchlistButton({ symbol }) {
   );
 }
 
-function RankingTable({ candidates, final = false, onOpenAnalysis }) {
+function RankingTable({ candidates, final = false, onOpenAnalysis, jobStatus }) {
   if (!candidates?.length) return null;
   return (
     <div className="scanner-table-wrap">
@@ -215,7 +220,17 @@ function RankingTable({ candidates, final = false, onOpenAnalysis }) {
               <td data-label={final ? "Décision" : "État"}>
                 {final ? (
                   <DecisionBadge decision={candidate.display_decision || candidate.raw_decision} size="sm" />
-                ) : <span className={`scanner-row-status ${candidate.analysis_status}`}>{statusCopy(candidate)}</span>}
+                ) : (
+                  <span
+                    className={`scanner-row-status ${
+                      ["error", "interrupted"].includes(jobStatus) && ["running", "queued", "error"].includes(candidate.analysis_status)
+                        ? "error"
+                        : candidate.analysis_status
+                    }`}
+                  >
+                    {statusCopy(candidate, jobStatus)}
+                  </span>
+                )}
               </td>
               <td data-label="Tendance">
                 <Sparkline
@@ -407,7 +422,7 @@ export default function ScannerPage({ online, job, setJob, onOpenAnalysis, onAdd
                 </button>
               ) : null}
             </div>
-            <RankingTable candidates={job.ranking} final onOpenAnalysis={onOpenAnalysis} onAddToWatchlist={onAddToWatchlist} />
+            <RankingTable candidates={job.ranking} final onOpenAnalysis={onOpenAnalysis} jobStatus={job.status} />
           </motion.section>
         ) : null}
       </AnimatePresence>
@@ -435,7 +450,7 @@ export default function ScannerPage({ online, job, setJob, onOpenAnalysis, onAdd
                 </button>
               ) : null}
             </div>
-            <RankingTable candidates={job.candidates} onOpenAnalysis={onOpenAnalysis} onAddToWatchlist={onAddToWatchlist} />
+            <RankingTable candidates={job.candidates} onOpenAnalysis={onOpenAnalysis} jobStatus={job.status} />
           </motion.section>
         ) : null}
       </AnimatePresence>

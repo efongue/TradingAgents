@@ -123,12 +123,21 @@ def load_scans_cache() -> dict[str, dict]:
         if SCANS_FILE.exists():
             payload = json.loads(SCANS_FILE.read_text(encoding="utf-8"))
             if isinstance(payload, dict):
+                modified = False
                 for scan in payload.values():
                     if scan.get("status") in {"queued", "running"}:
                         scan["status"] = "error"
                         scan["stage"] = "interrupted"
                         scan["stage_label"] = "Scan interrompu"
                         scan["error"] = "Le serveur Python a été redémarré pendant l'exécution du scan."
+                        scan["active_symbol"] = None
+                        scan["active_analysis_job_id"] = None
+                        for candidate in scan.get("candidates", []):
+                            if candidate.get("analysis_status") in {"queued", "running"}:
+                                candidate["analysis_status"] = "error"
+                        modified = True
+                if modified:
+                    SCANS_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
                 return payload
     except (OSError, json.JSONDecodeError):
         pass
