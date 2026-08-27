@@ -2575,6 +2575,105 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   font-size: 13px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
+
+/* ==========================================================================
+   Global Floating Disclaimer Popup (Bottom of Page)
+   ========================================================================== */
+.disclaimer-floating-popup {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 95;
+  width: calc(100% - 32px);
+  max-width: 680px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  background: rgba(13, 20, 31, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55), 0 0 24px rgba(245, 158, 11, 0.12), var(--inner-highlight);
+}
+
+.disclaimer-popup-content {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+}
+
+.disclaimer-popup-icon-wrap {
+  flex: 0 0 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--amber);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.disclaimer-popup-text {
+  min-width: 0;
+}
+
+.disclaimer-popup-text strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fde047;
+  letter-spacing: -0.01em;
+}
+
+.disclaimer-popup-text p {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+.disclaimer-popup-close {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.disclaimer-popup-close:hover {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(244, 63, 94, 0.4);
+  color: var(--danger);
+  transform: scale(1.06);
+}
+
+@media (max-width: 640px) {
+  .disclaimer-floating-popup {
+    bottom: 12px;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .disclaimer-popup-icon-wrap {
+    display: none;
+  }
+  .disclaimer-popup-text strong {
+    font-size: 11.5px;
+  }
+  .disclaimer-popup-text p {
+    font-size: 10.5px;
+  }
+}
 /* ==========================================================================
    Decision Badge with Multi-Tier Force & Conviction Indicators
    ========================================================================== */

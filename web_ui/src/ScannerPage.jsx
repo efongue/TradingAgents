@@ -393,11 +393,6 @@ export default function ScannerPage({ online, job, setJob, onOpenAnalysis, onAdd
           </motion.section>
         ) : null}
       </AnimatePresence>
-
-      <div className="scanner-disclaimer">
-        <ShieldCheck size={18} />
-        <p><strong>Outil de recherche, pas conseil financier.</strong> Le score sert à prioriser les analyses ; il ne prédit pas les performances futures et n’exécute aucun ordre.</p>
-      </div>
     </main>
   );
 }
