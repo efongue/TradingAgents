@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { getCompanyName } from "./companyNames.js";
+import StockSearchInput from "./StockSearchInput.jsx";
 import { getDecisionTone, formatDecisionLabel, getDecisionStrength, isPositiveDecision } from "./decisionUtils.js";
 import DecisionBadge from "./DecisionBadge.jsx";
 import Sparkline from "./Sparkline.jsx";
@@ -169,18 +170,23 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker }) {
       {/* Controls: Search, Add & View Switcher */}
       <section className="watchlist-controls-panel">
         <form onSubmit={handleAdd} className="watchlist-add-form">
-          <div className="watchlist-input-wrapper">
-            <Plus size={16} className="input-icon" />
-            <input
-              value={newSymbol}
-              onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
-              placeholder="Ajouter un symbole (ex: TSLA, AMZN)..."
-              maxLength={15}
-            />
-          </div>
-          <button type="submit" className="primary-button" disabled={!newSymbol.trim()}>
-            Ajouter
-          </button>
+          <StockSearchInput
+            value={newSymbol}
+            onChange={(sym) => setNewSymbol(sym)}
+            onSelect={(stock) => {
+              const updated = addToWatchlist(stock.ticker);
+              setItems(updated);
+              setNewSymbol("");
+            }}
+            placeholder="Ajouter une action (ex: LVMH, TSLA, Sanofi, MSFT)..."
+            inputIcon={<Plus size={16} className="input-icon" />}
+            className="watchlist-search-wrapper"
+            inputClassName="watchlist-input"
+          >
+            <button type="submit" className="primary-button" disabled={!newSymbol.trim()}>
+              Ajouter
+            </button>
+          </StockSearchInput>
         </form>
 
         <div className="watchlist-quick-chips">

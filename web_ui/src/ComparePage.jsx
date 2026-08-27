@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { getCompanyName } from "./companyNames.js";
+import StockSearchInput from "./StockSearchInput.jsx";
 import { getDecisionTone, formatDecisionLabel, getDecisionStrength } from "./decisionUtils.js";
 import DecisionBadge from "./DecisionBadge.jsx";
 
@@ -122,15 +123,21 @@ export default function ComparePage({ history = [], initialTickers, onOpenAnalys
             }}
             className="compare-input-form"
           >
-            <input
+            <StockSearchInput
               value={customInput}
-              onChange={(e) => setCustomInput(e.target.value.toUpperCase())}
-              placeholder="Ajouter un symbole (ex: AAPL, GOOGL)..."
-              maxLength={15}
-            />
-            <button type="submit" className="secondary-button" disabled={!customInput.trim()}>
-              <Plus size={16} /> Ajouter
-            </button>
+              onChange={(val) => setCustomInput(val)}
+              onSelect={(stock) => {
+                addTicker(stock.ticker);
+              }}
+              placeholder="Ajouter une action à comparer (ex: AAPL, GOOGL, LVMH)..."
+              inputIcon={<Plus size={16} className="input-icon" />}
+              className="compare-search-wrapper"
+              inputClassName="compare-input"
+            >
+              <button type="submit" className="secondary-button" disabled={!customInput.trim()}>
+                <Plus size={16} /> Ajouter
+              </button>
+            </StockSearchInput>
           </form>
 
           {availableSuggestions.length ? (

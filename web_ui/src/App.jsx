@@ -63,6 +63,7 @@ import { api } from "./api.js";
 import ScannerPage from "./ScannerPage.jsx";
 import ComparePage from "./ComparePage.jsx";
 import WatchlistPage, { addToWatchlist, isInWatchlist, toggleWatchlist } from "./WatchlistPage.jsx";
+import StockSearchInput from "./StockSearchInput.jsx";
 import { getCompanyName, searchStocks } from "./companyNames.js";
 import {
   getDecisionTone,
@@ -309,10 +310,6 @@ function AnalystToggle({ id, label, description, Icon, selected, disabled, onTog
 
 function AnalysisForm({ form, setForm, disabled, online, analysts, analystsError, onSubmit }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const inputRef = useRef(null);
-  const dropdownRef = useRef(null);
 
   const toggleAnalyst = (id) => {
     setForm((current) => {
@@ -327,58 +324,6 @@ function AnalysisForm({ form, setForm, disabled, online, analysts, analystsError
     });
   };
 
-  const suggestions = useMemo(() => {
-    if (!form.ticker || !form.ticker.trim()) return [];
-    return searchStocks(form.ticker, 7);
-  }, [form.ticker]);
-
-  const selectSuggestion = (stock) => {
-    setForm((prev) => ({ ...prev, ticker: stock.ticker }));
-    setShowSuggestions(false);
-    setHighlightedIndex(-1);
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (!showSuggestions || suggestions.length === 0) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHighlightedIndex((prev) => (prev + 1) % suggestions.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHighlightedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
-    } else if (e.key === "Enter") {
-      if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
-        e.preventDefault();
-        selectSuggestion(suggestions[highlightedIndex]);
-      }
-    } else if (e.key === "Escape") {
-      setShowSuggestions(false);
-      setHighlightedIndex(-1);
-    } else if (e.key === "Tab") {
-      if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
-        selectSuggestion(suggestions[highlightedIndex]);
-      }
-    }
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target) &&
-        inputRef.current &&
-        !inputRef.current.contains(e.target)
-      ) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const PRESETS = [
     { ticker: "NVDA", label: "NVDA · NVIDIA" },
     { ticker: "MSFT", label: "MSFT · Microsoft" },
@@ -392,85 +337,29 @@ function AnalysisForm({ form, setForm, disabled, online, analysts, analystsError
   return (
     <div className="analysis-launcher-card">
       <form className="analysis-launcher-form" onSubmit={onSubmit}>
-        <div className="launcher-input-wrapper">
-          <div className="launcher-input-group">
-            <Search size={19} className="launcher-search-icon" />
-            <input
-              ref={inputRef}
-              value={form.ticker}
-              onChange={(event) => {
-                const val = event.target.value.toUpperCase();
-                setForm({ ...form, ticker: val });
-                setShowSuggestions(Boolean(val.trim()));
-                setHighlightedIndex(-1);
-              }}
-              onFocus={() => {
-                if (form.ticker && form.ticker.trim()) {
-                  setShowSuggestions(true);
-                }
-              }}
-              onKeyDown={handleKeyDown}
-              pattern="[A-Za-z0-9.\-^=]{1,20}"
-              required
-              disabled={disabled}
-              placeholder="Entrez un symbole ou nom d'action (ex: NVDA, LVMH, MSFT, Total)..."
-              aria-label="Symbole boursier ou nom d'action"
-              autoComplete="off"
-            />
-            <motion.button
-              className="primary-button launcher-submit-btn"
-              type="submit"
-              disabled={disabled || !online || analysts.length === 0 || form.analysts.length === 0 || !form.ticker.trim()}
-              whileHover={disabled || !online ? {} : { scale: 1.02 }}
-              whileTap={disabled || !online ? {} : { scale: 0.98 }}
-            >
-              {disabled ? <LoaderCircle className="spin" size={17} /> : <Play size={17} fill="currentColor" />}
-              {disabled ? "Analyse en cours…" : "Lancer l'analyse"}
-            </motion.button>
-          </div>
-
-          {/* Autocomplete Dropdown */}
-          <AnimatePresence>
-            {showSuggestions && suggestions.length > 0 ? (
-              <motion.div
-                ref={dropdownRef}
-                className="launcher-autocomplete-dropdown"
-                initial={{ opacity: 0, y: -4, scale: 0.99 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.99 }}
-                transition={{ duration: 0.14, ease: "easeOut" }}
-              >
-                <div className="autocomplete-header">
-                  <span>Actions correspondantes ({suggestions.length})</span>
-                  <small>↑↓ naviguer · ↵ valider · Echap fermer</small>
-                </div>
-                <ul className="autocomplete-list" role="listbox">
-                  {suggestions.map((stock, index) => {
-                    const isHighlighted = index === highlightedIndex;
-                    return (
-                      <li
-                        key={stock.ticker}
-                        role="option"
-                        aria-selected={isHighlighted}
-                        className={`autocomplete-item ${isHighlighted ? "highlighted" : ""}`}
-                        onClick={() => selectSuggestion(stock)}
-                        onMouseEnter={() => setHighlightedIndex(index)}
-                      >
-                        <div className="autocomplete-ticker-col">
-                          <strong className="autocomplete-ticker-tag">{stock.ticker}</strong>
-                          <span className="autocomplete-name">{stock.name}</span>
-                        </div>
-                        {stock.sector ? (
-                          <span className="autocomplete-sector-tag">{stock.sector}</span>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
+        <StockSearchInput
+          value={form.ticker}
+          onChange={(ticker) => setForm((prev) => ({ ...prev, ticker }))}
+          onSelect={(stock) => setForm((prev) => ({ ...prev, ticker: stock.ticker }))}
+          placeholder="Entrez un symbole ou nom d'action (ex: NVDA, LVMH, MSFT, Total)..."
+          disabled={disabled}
+          pattern="[A-Za-z0-9.\-^=]{1,20}"
+          required
+          inputIcon={<Search size={19} className="launcher-search-icon" />}
+          className="launcher-search-wrapper"
+          inputClassName="launcher-input"
+        >
+          <motion.button
+            className="primary-button launcher-submit-btn"
+            type="submit"
+            disabled={disabled || !online || analysts.length === 0 || form.analysts.length === 0 || !form.ticker.trim()}
+            whileHover={disabled || !online ? {} : { scale: 1.02 }}
+            whileTap={disabled || !online ? {} : { scale: 0.98 }}
+          >
+            {disabled ? <LoaderCircle className="spin" size={17} /> : <Play size={17} fill="currentColor" />}
+            {disabled ? "Analyse en cours…" : "Lancer l'analyse"}
+          </motion.button>
+        </StockSearchInput>
 
         <div className="launcher-footer">
           <div className="quick-preset-chips" aria-label="Suggestions rapides de titres">
