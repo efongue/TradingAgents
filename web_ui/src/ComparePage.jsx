@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
-import { getDecisionTone } from "./decisionUtils.js";
+import { getDecisionTone, formatDecisionLabel } from "./decisionUtils.js";
 
 function formatNumber(value, digits = 2) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
@@ -188,7 +188,7 @@ export default function ComparePage({ history = [], initialTickers = ["NVDA", "M
                     <span className="compare-price">{formatNumber(snapshot.close || result.reliability?.verified_close)} $</span>
                   </div>
                   <div className={`compare-decision-pill ${tone}`}>
-                    {decision}
+                    {formatDecisionLabel(decision)}
                   </div>
                 </div>
 

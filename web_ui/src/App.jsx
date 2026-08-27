@@ -61,7 +61,7 @@ import ComparePage from "./ComparePage.jsx";
 import WatchlistPage, { addToWatchlist } from "./WatchlistPage.jsx";
 import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
-import { getDecisionTone, isPositiveDecision, isNegativeDecision, isNeutralDecision } from "./decisionUtils.js";
+import { getDecisionTone, formatDecisionLabel, isPositiveDecision, isNegativeDecision, isNeutralDecision } from "./decisionUtils.js";
 
 const NAV_ITEMS = [
   ["analysis", "Nouvelle analyse", TrendingUp],
@@ -233,8 +233,8 @@ function PipelineGuidePopover() {
         <div className="pipeline-tier">
           <span className="tier-number">3</span>
           <div>
-            <strong>Débat Contradictoire (Bull vs Bear)</strong>
-            <p>Confrontation systématique arbitrée par le Research Manager et challenge par le Risk Manager (Conservative, Neutral, Aggressive).</p>
+            <strong>Débat Contradictoire (Haussier vs Baissier)</strong>
+            <p>Confrontation systématique arbitrée par le Research Manager et challenge par le Risk Manager (Prudent, Neutre, Dynamique).</p>
           </div>
         </div>
         <div className="pipeline-tier">
@@ -261,7 +261,9 @@ function InstantDemoBanner({ onSelectDemo }) {
       </div>
       <div className="ftux-cards-grid">
         {Object.values(DEMO_ANALYSES).map((demo) => {
-          const tone = getDecisionTone(demo.result.display_decision);
+          const rawDecision = demo.result.display_decision;
+          const tone = getDecisionTone(rawDecision);
+          const formattedDecision = formatDecisionLabel(rawDecision);
           return (
             <motion.button
               key={demo.ticker}
@@ -278,7 +280,7 @@ function InstantDemoBanner({ onSelectDemo }) {
                     {getCompanyName(demo.ticker)}
                   </span>
                 </div>
-                <span className={`ftux-decision-pill ${tone}`}>{demo.result.display_decision}</span>
+                <span className={`ftux-decision-pill ${tone}`}>{formattedDecision}</span>
               </div>
               <p>{demo.result.consensus?.verdict || demo.result.summary.slice(0, 85)}</p>
               <span className="ftux-explore-link">Explorer l’analyse &rarr;</span>
@@ -790,8 +792,9 @@ function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analyst
 
 function DecisionHero({ result }) {
   const blocked = result.reliability?.blocked;
-  const decision = result.display_decision || "ATTENDRE";
-  const tone = getDecisionTone(decision);
+  const rawDecision = result.display_decision || "ATTENDRE";
+  const tone = getDecisionTone(rawDecision);
+  const decision = formatDecisionLabel(rawDecision);
   const consensus = result.consensus || { bullish: 75, neutral: 15, bearish: 10 };
   const scores = result.analyst_scores;
 
@@ -876,8 +879,9 @@ function FinancialBento({ job, result }) {
   const reports = result.reports || {};
   const snapshot = result.snapshot || {};
   const reliability = result.reliability || {};
-  const decision = String(result.display_decision || "ATTENDRE").toUpperCase();
-  const tone = getDecisionTone(decision);
+  const rawDecision = String(result.display_decision || "ATTENDRE").toUpperCase();
+  const tone = getDecisionTone(rawDecision);
+  const decision = formatDecisionLabel(rawDecision);
   const positive = tone === "positive";
   const negative = tone === "negative";
   const SignalIcon = positive ? ArrowUpRight : negative ? ArrowDownRight : Minus;
@@ -1506,7 +1510,7 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
 
                   <div>
                     <span className={`history-decision-pill ${tone}`}>
-                      <i className="status-dot" /> {decision}
+                      <i className="status-dot" /> {formatDecisionLabel(decision)}
                     </span>
                   </div>
 

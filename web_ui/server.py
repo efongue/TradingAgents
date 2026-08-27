@@ -1338,8 +1338,37 @@ def run_analysis(job_id: str, payload: dict) -> None:
         final_decision = reports["portfolio"]
         reliability = reliability_checks(snapshot, final_decision, len(analysts))
 
-        raw_label = str(raw_decision or "HOLD").upper()
-        translations = {"BUY": "ACHETER", "SELL": "VENDRE", "HOLD": "ATTENDRE"}
+        raw_label = str(raw_decision or "HOLD").upper().strip()
+        translations = {
+            "BUY": "ACHETER",
+            "STRONG BUY": "ACHAT FORT",
+            "ACHAT FORT": "ACHAT FORT",
+            "ACHETER FORT": "ACHAT FORT",
+            "OVERWEIGHT": "SURPONDÉRER",
+            "SURPONDÉRER": "SURPONDÉRER",
+            "SURPONDERER": "SURPONDÉRER",
+            "OUTPERFORM": "SURPERFORMER",
+            "ACCUMULATE": "ACCUMULER",
+            "ACCUMULER": "ACCUMULER",
+            "SELL": "VENDRE",
+            "STRONG SELL": "VENTE FORTE",
+            "VENTE FORTE": "VENTE FORTE",
+            "VENDRE FORT": "VENTE FORTE",
+            "UNDERWEIGHT": "SOUS-PONDÉRER",
+            "SOUS-PONDÉRER": "SOUS-PONDÉRER",
+            "SOUSPONDERER": "SOUS-PONDÉRER",
+            "UNDERPERFORM": "SOUS-PERFORMER",
+            "REDUCE": "ALLÉGER",
+            "ALLÉGER": "ALLÉGER",
+            "ALLEGER": "ALLÉGER",
+            "HOLD": "CONSERVER",
+            "CONSERVER": "CONSERVER",
+            "WAIT": "ATTENDRE",
+            "ATTENDRE": "ATTENDRE",
+            "EQUAL-WEIGHT": "PONDÉRATION NEUTRE",
+            "NEUTRAL": "NEUTRE",
+            "NEUTRE": "NEUTRE",
+        }
         display = "ATTENDRE" if reliability["blocked"] else translations.get(raw_label, raw_label)
         confidence = "Confiance limitée" if reliability["blocked"] else "Confiance modérée"
 

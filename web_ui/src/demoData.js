@@ -51,7 +51,7 @@ NVIDIA maintient une avance technologique et commerciale décisive sur l'ensembl
 
 ## 1. Vue d'Ensemble & Décision
 - **Symbole** : NVDA (NASDAQ)
-- **Décision Finale** : ACHETER FORT (Overweight)
+- **Décision Finale** : ACHAT FORT (Surpondérer)
 - **Indice de Confiance** : 92 % (Données vérifiées sans incohérence)
 - **Consensus Multi-Agents** : 88 % Haussier / 8 % Neutre / 4 % Prudent
 
@@ -184,7 +184,7 @@ Microsoft combine le profil de croissance d'un acteur cloud de pointe avec la so
 
 ## 1. Vue d'Ensemble & Décision
 - **Symbole** : MSFT (NASDAQ)
-- **Décision Finale** : ACCUMULER (Overweight)
+- **Décision Finale** : ACCUMULER (Surpondérer)
 - **Indice de Confiance** : 90 %
 - **Consensus Multi-Agents** : 82 % Haussier / 14 % Neutre / 4 % Prudent
 
@@ -288,7 +288,7 @@ Apple bénéficie d'une base installée active de plus de 2,2 milliards d'appare
 
 ## 1. Vue d'Ensemble & Décision
 - **Symbole** : AAPL (NASDAQ)
-- **Décision Finale** : CONSERVER (Neutral / Hold)
+- **Décision Finale** : CONSERVER (Pondération Neutre)
 - **Indice de Confiance** : 88 %
 - **Consensus Multi-Agents** : 64 % Haussier / 28 % Neutre / 8 % Prudent
 

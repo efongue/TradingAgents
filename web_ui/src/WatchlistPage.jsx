@@ -15,10 +15,10 @@ import {
 } from "lucide-react";
 import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
-import { getDecisionTone, isPositiveDecision } from "./decisionUtils.js";
+import { getDecisionTone, formatDecisionLabel, isPositiveDecision } from "./decisionUtils.js";
 
 const DEFAULT_WATCHLIST = [
-  { symbol: "NVDA", added_at: "2026-08-27", last_decision: "ACHETER FORT", note: "Leader calcul accéléré et datacenters" },
+  { symbol: "NVDA", added_at: "2026-08-27", last_decision: "ACHAT FORT", note: "Leader calcul accéléré et datacenters" },
   { symbol: "MSFT", added_at: "2026-08-27", last_decision: "ACCUMULER", note: "Monétisation Copilot et Azure Cloud" },
   { symbol: "AAPL", added_at: "2026-08-27", last_decision: "CONSERVER", note: "Division Services et marge brute résiliente" },
 ];
@@ -253,7 +253,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                     </td>
                     <td>
                       <span className={`watchlist-decision-pill ${tone}`}>
-                        <i className="status-dot" /> {decision}
+                        <i className="status-dot" /> {formatDecisionLabel(decision)}
                       </span>
                     </td>
                     <td>
@@ -262,7 +262,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                           <div className="mini-bar">
                             <span style={{ width: `${consensus.bullish}%` }} />
                           </div>
-                          <span className="mini-label">{consensus.bullish}% Bull</span>
+                          <span className="mini-label">{consensus.bullish}% Haussier</span>
                         </div>
                       ) : (
                         <span className="muted-text">—</span>
@@ -353,7 +353,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                       <span className="watchlist-added-date">Ajouté le {item.added_at}</span>
                     </div>
                     <span className={`watchlist-decision-pill ${tone}`}>
-                      <i className="status-dot" /> {decision}
+                      <i className="status-dot" /> {formatDecisionLabel(decision)}
                     </span>
                   </div>
 
