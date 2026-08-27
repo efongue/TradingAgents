@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import { api } from "./api.js";
 import { getCompanyName } from "./companyNames.js";
-import { getDecisionTone, formatDecisionLabel } from "./decisionUtils.js";
+import { getDecisionTone, formatDecisionLabel, getDecisionStrength } from "./decisionUtils.js";
+import DecisionBadge from "./DecisionBadge.jsx";
 import "./scanner.css";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -167,9 +168,7 @@ function RankingTable({ candidates, final = false, onOpenAnalysis, onAddToWatchl
               </td>
               <td data-label={final ? "Décision" : "État"}>
                 {final ? (
-                  <span className={`scanner-decision ${getDecisionTone(candidate.raw_decision || candidate.display_decision)}`}>
-                    <i className="status-dot" /> {formatDecisionLabel(candidate.display_decision || candidate.raw_decision || "—")}
-                  </span>
+                  <DecisionBadge decision={candidate.display_decision || candidate.raw_decision} size="sm" />
                 ) : <span className={`scanner-row-status ${candidate.analysis_status}`}>{statusCopy(candidate)}</span>}
               </td>
               <td data-label="Score">

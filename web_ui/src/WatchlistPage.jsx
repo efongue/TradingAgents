@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
-import { getDecisionTone, formatDecisionLabel, isPositiveDecision } from "./decisionUtils.js";
+import { getDecisionTone, formatDecisionLabel, getDecisionStrength, isPositiveDecision } from "./decisionUtils.js";
+import DecisionBadge from "./DecisionBadge.jsx";
 
 const DEFAULT_WATCHLIST = [
   { symbol: "NVDA", added_at: "2026-08-27", last_decision: "ACHAT FORT", note: "Leader calcul accéléré et datacenters" },
@@ -252,9 +253,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                       </div>
                     </td>
                     <td>
-                      <span className={`watchlist-decision-pill ${tone}`}>
-                        <i className="status-dot" /> {formatDecisionLabel(decision)}
-                      </span>
+                      <DecisionBadge decision={decision} size="sm" />
                     </td>
                     <td>
                       {demo ? (
@@ -329,10 +328,12 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
               const tone = getDecisionTone(decision);
               const consensus = demo?.result?.consensus || { bullish: 75, neutral: 15, bearish: 10 };
 
+              const strength = getDecisionStrength(decision);
+
               return (
                 <motion.article
                   key={item.symbol}
-                  className={`watchlist-card ${tone}`}
+                  className={`watchlist-card ${tone} tier-${strength.tier}`}
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
@@ -352,9 +353,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                       </div>
                       <span className="watchlist-added-date">Ajouté le {item.added_at}</span>
                     </div>
-                    <span className={`watchlist-decision-pill ${tone}`}>
-                      <i className="status-dot" /> {formatDecisionLabel(decision)}
-                    </span>
+                    <DecisionBadge decision={decision} size="md" showTag={true} />
                   </div>
 
                   {demo ? (

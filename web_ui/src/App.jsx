@@ -61,7 +61,15 @@ import ComparePage from "./ComparePage.jsx";
 import WatchlistPage, { addToWatchlist } from "./WatchlistPage.jsx";
 import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
-import { getDecisionTone, formatDecisionLabel, isPositiveDecision, isNegativeDecision, isNeutralDecision } from "./decisionUtils.js";
+import {
+  getDecisionTone,
+  formatDecisionLabel,
+  getDecisionStrength,
+  isPositiveDecision,
+  isNegativeDecision,
+  isNeutralDecision,
+} from "./decisionUtils.js";
+import DecisionBadge from "./DecisionBadge.jsx";
 
 const NAV_ITEMS = [
   ["analysis", "Nouvelle analyse", TrendingUp],
@@ -795,15 +803,26 @@ function DecisionHero({ result }) {
   const rawDecision = result.display_decision || "ATTENDRE";
   const tone = getDecisionTone(rawDecision);
   const decision = formatDecisionLabel(rawDecision);
+  const strength = getDecisionStrength(rawDecision);
   const consensus = result.consensus || { bullish: 75, neutral: 15, bearish: 10 };
   const scores = result.analyst_scores;
 
   return (
-    <section className={`decision-hero ${blocked ? "blocked" : `tone-${tone}`}`}>
+    <section className={`decision-hero ${blocked ? "blocked" : `tone-${tone} tier-${strength.tier}`}`}>
       <div className="decision-top-row">
         <div className="decision-main">
           <span>Décision du portefeuille</span>
-          <strong className={`decision-text ${tone}`}>{decision}</strong>
+          <strong className={`decision-text ${tone} tier-${strength.tier}`}>{decision}</strong>
+          <div className={`decision-strength-pill ${tone} tier-${strength.tier}`}>
+            <span className="strength-bars" title={`Force : ${strength.badgeLabel} (${strength.level}/3)`}>
+              <i className={`bar b1 ${strength.level >= 1 ? "active" : ""}`} />
+              <i className={`bar b2 ${strength.level >= 2 ? "active" : ""}`} />
+              <i className={`bar b3 ${strength.level >= 3 ? "active" : ""}`} />
+            </span>
+            <span className="strength-tag-name">{strength.tag}</span>
+            <span className="strength-sep">·</span>
+            <span className="strength-desc">{strength.description}</span>
+          </div>
         </div>
         <div className="confidence-copy">
           {blocked ? <AlertTriangle size={26} /> : <CheckCircle2 size={26} />}
@@ -1509,9 +1528,7 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
                   </div>
 
                   <div>
-                    <span className={`history-decision-pill ${tone}`}>
-                      <i className="status-dot" /> {formatDecisionLabel(decision)}
-                    </span>
+                    <DecisionBadge decision={decision} size="sm" />
                   </div>
 
                   <div>

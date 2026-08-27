@@ -670,23 +670,112 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   font-weight: 700;
   letter-spacing: -0.04em;
 }
-.decision-text.positive {
-  background: linear-gradient(180deg, #a7f3d0 0%, #10b981 100%);
+/* Tier-differentiated decision typography */
+.decision-text.positive.tier-strong {
+  background: linear-gradient(180deg, #6ee7b7 0%, #059669 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.4));
+  filter: drop-shadow(0 0 24px rgba(16, 185, 129, 0.6));
 }
+.decision-text.positive.tier-strategic {
+  background: linear-gradient(180deg, #a7f3d0 0%, #0d9488 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 20px rgba(45, 212, 191, 0.45));
+}
+.decision-text.positive.tier-moderate, .decision-text.positive {
+  background: linear-gradient(180deg, #d1fae5 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 16px rgba(16, 185, 129, 0.35));
+}
+
 .decision-text.neutral {
   background: linear-gradient(180deg, #fef08a 0%, #f59e0b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 0 20px rgba(245, 158, 11, 0.4));
 }
-.decision-text.negative {
-  background: linear-gradient(180deg, #fecaca 0%, #ef4444 100%);
+
+.decision-text.negative.tier-strong {
+  background: linear-gradient(180deg, #fca5a5 0%, #dc2626 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.45));
+  filter: drop-shadow(0 0 24px rgba(239, 68, 68, 0.65));
+}
+.decision-text.negative.tier-strategic {
+  background: linear-gradient(180deg, #fecdd3 0%, #e11d48 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 20px rgba(244, 63, 94, 0.45));
+}
+.decision-text.negative.tier-moderate, .decision-text.negative {
+  background: linear-gradient(180deg, #ffe4e6 0%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.35));
+}
+
+/* Sub-pill under decision in DecisionHero */
+.decision-strength-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 5px 13px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 600;
+  width: fit-content;
+  border: 1px solid transparent;
+}
+.decision-strength-pill .strength-tag-name {
+  font-weight: 700;
+}
+.decision-strength-pill .strength-sep {
+  opacity: 0.5;
+}
+.decision-strength-pill .strength-desc {
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 500;
+}
+.decision-strength-pill.positive {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #a7f3d0;
+}
+.decision-strength-pill.positive.tier-strong {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: #10b981;
+  color: #34d399;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
+}
+.decision-strength-pill.positive.tier-strategic {
+  background: rgba(45, 212, 191, 0.16);
+  border-color: rgba(45, 212, 191, 0.5);
+  color: #5eead4;
+}
+.decision-strength-pill.neutral {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fde047;
+}
+.decision-strength-pill.negative {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+.decision-strength-pill.negative.tier-strong {
+  background: rgba(239, 68, 68, 0.24);
+  border-color: #ef4444;
+  color: #f87171;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+}
+.decision-strength-pill.negative.tier-strategic {
+  background: rgba(244, 63, 94, 0.16);
+  border-color: rgba(244, 63, 94, 0.5);
+  color: #fda4af;
 }
 
 .confidence-copy { display: flex; align-items: center; gap: 12px; }
@@ -2484,8 +2573,173 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   font-size: 13px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
-.toast-notification svg {
-  color: var(--mint);
+/* ==========================================================================
+   Decision Badge with Multi-Tier Force & Conviction Indicators
+   ========================================================================== */
+.decision-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transition: all 140ms ease;
+}
+
+.decision-pill-badge.size-sm {
+  font-size: 10px;
+  padding: 3px 8px;
+}
+.decision-pill-badge.size-md {
+  font-size: 11px;
+  padding: 4px 11px;
+}
+.decision-pill-badge.size-lg {
+  font-size: 12.5px;
+  padding: 6px 14px;
+}
+
+.decision-strength-tag {
+  font-size: 9.5px;
+  opacity: 0.85;
+  margin-left: 4px;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  font-weight: 600;
+}
+
+/* Micro-bars for visual force indicator */
+.strength-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+  margin-right: 1px;
+}
+.strength-bars .bar {
+  display: block;
+  width: 2.5px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.14);
+  transition: all 140ms ease;
+}
+.strength-bars .bar.b1 { height: 4px; }
+.strength-bars .bar.b2 { height: 7px; }
+.strength-bars .bar.b3 { height: 10px; }
+
+/* === HAUSSIER / ACHAT TIERS === */
+/* Tier 3 : Achat Fort (Force Maximale) - Vert Émeraude Électrique */
+.decision-pill-badge.positive.tier-strong,
+.history-decision-pill.positive.tier-strong,
+.watchlist-decision-pill.positive.tier-strong,
+.compare-decision-pill.positive.tier-strong,
+.scanner-decision.positive.tier-strong {
+  background: rgba(16, 185, 129, 0.22);
+  color: #34d399;
+  border: 1.5px solid #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+}
+.positive.tier-strong .strength-bars .bar.active {
+  background: #34d399;
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.9);
+}
+
+/* Tier 2 : Surpondérer (Force Stratégique) - Vert Menthe */
+.decision-pill-badge.positive.tier-strategic,
+.history-decision-pill.positive.tier-strategic,
+.watchlist-decision-pill.positive.tier-strategic,
+.compare-decision-pill.positive.tier-strategic,
+.scanner-decision.positive.tier-strategic {
+  background: rgba(45, 212, 191, 0.16);
+  color: #5eead4;
+  border: 1px solid rgba(45, 212, 191, 0.5);
+  box-shadow: 0 0 8px rgba(45, 212, 191, 0.28);
+}
+.positive.tier-strategic .strength-bars .bar.active {
+  background: #2dd4bf;
+  box-shadow: 0 0 5px rgba(45, 212, 191, 0.7);
+}
+
+/* Tier 1 : Acheter / Accumuler (Force Modérée) - Vert Sauge */
+.decision-pill-badge.positive.tier-moderate,
+.decision-pill-badge.positive,
+.history-decision-pill.positive.tier-moderate,
+.watchlist-decision-pill.positive.tier-moderate,
+.compare-decision-pill.positive.tier-moderate,
+.scanner-decision.positive.tier-moderate {
+  background: rgba(16, 185, 129, 0.11);
+  color: #a7f3d0;
+  border: 1px solid rgba(16, 185, 129, 0.38);
+}
+.positive.tier-moderate .strength-bars .bar.active,
+.positive .strength-bars .bar.active {
+  background: #10b981;
+}
+
+/* === BAISSIER / VENTE TIERS === */
+/* Tier 3 : Vente Forte (Urgence Maximale) - Rouge Écarlate */
+.decision-pill-badge.negative.tier-strong,
+.history-decision-pill.negative.tier-strong,
+.watchlist-decision-pill.negative.tier-strong,
+.compare-decision-pill.negative.tier-strong,
+.scanner-decision.negative.tier-strong {
+  background: rgba(239, 68, 68, 0.24);
+  color: #f87171;
+  border: 1.5px solid #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
+.negative.tier-strong .strength-bars .bar.active {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.9);
+}
+
+/* Tier 2 : Sous-pondérer (Dégradation Stratégique) - Corail */
+.decision-pill-badge.negative.tier-strategic,
+.history-decision-pill.negative.tier-strategic,
+.watchlist-decision-pill.negative.tier-strategic,
+.compare-decision-pill.negative.tier-strategic,
+.scanner-decision.negative.tier-strategic {
+  background: rgba(244, 63, 94, 0.16);
+  color: #fda4af;
+  border: 1px solid rgba(244, 63, 94, 0.5);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.28);
+}
+.negative.tier-strategic .strength-bars .bar.active {
+  background: #f43f5e;
+  box-shadow: 0 0 5px rgba(244, 63, 94, 0.7);
+}
+
+/* Tier 1 : Alléger / Vendre (Allègement Modéré) - Rose */
+.decision-pill-badge.negative.tier-moderate,
+.decision-pill-badge.negative,
+.history-decision-pill.negative.tier-moderate,
+.watchlist-decision-pill.negative.tier-moderate,
+.compare-decision-pill.negative.tier-moderate,
+.scanner-decision.negative.tier-moderate {
+  background: rgba(244, 63, 94, 0.11);
+  color: #fecdd3;
+  border: 1px solid rgba(244, 63, 94, 0.38);
+}
+.negative.tier-moderate .strength-bars .bar.active,
+.negative .strength-bars .bar.active {
+  background: #fda4af;
+}
+
+/* === NEUTRE TIER === */
+.decision-pill-badge.neutral,
+.history-decision-pill.neutral,
+.watchlist-decision-pill.neutral,
+.compare-decision-pill.neutral,
+.scanner-decision.neutral {
+  background: var(--signal-neutral-bg);
+  color: var(--signal-neutral-text);
+  border: 1px solid var(--signal-neutral-border);
+}
+.neutral .strength-bars .bar.active {
+  background: var(--signal-neutral);
+  box-shadow: 0 0 5px var(--signal-neutral-glow);
 }
 
 /* ==========================================================================

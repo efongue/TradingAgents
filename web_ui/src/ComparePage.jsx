@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
-import { getDecisionTone, formatDecisionLabel } from "./decisionUtils.js";
+import { getDecisionTone, formatDecisionLabel, getDecisionStrength } from "./decisionUtils.js";
+import DecisionBadge from "./DecisionBadge.jsx";
 
 function formatNumber(value, digits = 2) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
@@ -164,6 +165,7 @@ export default function ComparePage({ history = [], initialTickers = ["NVDA", "M
             const consensus = result.consensus || { bullish: 70, neutral: 20, bearish: 10 };
             const decision = result.display_decision || "ATTENDRE";
             const tone = getDecisionTone(decision);
+            const strength = getDecisionStrength(decision);
             const scores = result.analyst_scores || {};
             const catalysts = result.catalysts || [];
             const riskVeto = result.risk_veto || {};
@@ -171,7 +173,7 @@ export default function ComparePage({ history = [], initialTickers = ["NVDA", "M
             return (
               <motion.article
                 key={job.ticker}
-                className={`compare-card ${tone}`}
+                className={`compare-card ${tone} tier-${strength.tier}`}
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
@@ -187,9 +189,7 @@ export default function ComparePage({ history = [], initialTickers = ["NVDA", "M
                     ) : null}
                     <span className="compare-price">{formatNumber(snapshot.close || result.reliability?.verified_close)} $</span>
                   </div>
-                  <div className={`compare-decision-pill ${tone}`}>
-                    {formatDecisionLabel(decision)}
-                  </div>
+                  <DecisionBadge decision={decision} size="md" />
                 </div>
 
                 {/* Consensus breakdown */}

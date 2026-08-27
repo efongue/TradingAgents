@@ -109,3 +109,106 @@ export function isNegativeDecision(decision) {
 export function isNeutralDecision(decision) {
   return getDecisionTone(decision) === "neutral";
 }
+
+/**
+ * Retourne le niveau de force et de conviction de la décision (1 à 3) :
+ * - level: 3 (Force maximale / Extrême), 2 (Force stratégique / Surpondération), 1 (Force modérée / Standard), 0 (Neutre)
+ * - tier: "strong" | "strategic" | "moderate" | "neutral"
+ * - tone: "positive" | "negative" | "neutral"
+ * - badgeLabel: Libellé court explicite de la force
+ * - tag: Tag visuel avec icône
+ */
+export function getDecisionStrength(decision) {
+  if (!decision) {
+    return {
+      level: 0,
+      tier: "neutral",
+      tone: "neutral",
+      badgeLabel: "Neutre",
+      tag: "⚖️ Statu Quo",
+      description: "Aucun déséquilibre directionnel majeur",
+    };
+  }
+
+  const upper = String(decision).toUpperCase().trim();
+
+  // === FAMILLE HAUSSIÈRE / ACHAT ===
+  // Force 3 : Achat Fort / Conviction Maximale
+  if (/STRONG\s*BUY|ACHAT\s*FORT|ACHETER\s*FORT/.test(upper)) {
+    return {
+      level: 3,
+      tier: "strong",
+      tone: "positive",
+      badgeLabel: "Force Maximale",
+      tag: "⚡ Conviction Forte",
+      description: "Convergence unanime des agents et fort potentiel",
+    };
+  }
+  // Force 2 : Surpondérer / Surperformer (Force Stratégique)
+  if (/OVERWEIGHT|SURPOND[EÉ]RER|OUTPERFORM|SURPERFORMER/.test(upper)) {
+    return {
+      level: 2,
+      tier: "strategic",
+      tone: "positive",
+      badgeLabel: "Surpondération",
+      tag: "📈 Allocation +",
+      description: "Surperformance attendue par rapport au marché",
+    };
+  }
+  // Force 1 : Acheter / Accumuler (Force Modérée / Standard)
+  if (/BUY|ACHAT|ACHETER|ACCUMULAT|RENFORCER|HAUSSIER|BULLISH/.test(upper)) {
+    return {
+      level: 1,
+      tier: "moderate",
+      tone: "positive",
+      badgeLabel: "Entrée / Accumulation",
+      tag: "✨ Entrée / Renfort",
+      description: "Opportunité d'achat ou renforcement progressif",
+    };
+  }
+
+  // === FAMILLE BAISSIÈRE / VENTE ===
+  // Force 3 : Vente Forte / Urgence Maximale
+  if (/STRONG\s*SELL|VENTE\s*FORTE|VENDRE\s*FORT/.test(upper)) {
+    return {
+      level: 3,
+      tier: "strong",
+      tone: "negative",
+      badgeLabel: "Sortie Urgente",
+      tag: "⚠️ Alerte Sortie",
+      description: "Risques élevés et désaccord baissier marqué",
+    };
+  }
+  // Force 2 : Sous-pondérer / Sous-performer
+  if (/UNDERWEIGHT|SOUS[\s-]*POND[EÉ]RER|UNDERPERFORM|SOUS[\s-]*PERFORMER/.test(upper)) {
+    return {
+      level: 2,
+      tier: "strategic",
+      tone: "negative",
+      badgeLabel: "Sous-pondération",
+      tag: "📉 Allocation -",
+      description: "Sous-performance attendue par rapport à l'indice",
+    };
+  }
+  // Force 1 : Vendre / Alléger / Réduire
+  if (/SELL|VENTE|VENDRE|ALL[EÉ]GER|R[EÉ]DUIRE|BAISSIER|BEARISH|SHORT/.test(upper)) {
+    return {
+      level: 1,
+      tier: "moderate",
+      tone: "negative",
+      badgeLabel: "Allègement",
+      tag: "🔻 Prise de Profit",
+      description: "Réduction tactique de l'exposition au titre",
+    };
+  }
+
+  // === FAMILLE NEUTRE ===
+  return {
+    level: 0,
+    tier: "neutral",
+    tone: "neutral",
+    badgeLabel: "Neutre",
+    tag: "⚖️ Statu Quo",
+    description: "Position à conserver, attendre un catalyseur",
+  };
+}
