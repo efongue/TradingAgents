@@ -32,8 +32,11 @@ import {
   ExternalLink,
   FileText,
   Gauge,
+  GitCompare,
   HelpCircle,
   History,
+  Layers,
+  ListFilter,
   LoaderCircle,
   LayoutGrid,
   Menu,
@@ -1372,6 +1375,8 @@ function ResultPage({ job, onReset, historical = false, onBackHistory, onAddToWa
 function HistoryPage({ history, loadingId, error, onSelect, onDeleteItem }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTone, setFilterTone] = useState("all");
+  const [viewMode, setViewMode] = useState("grouped");
+  const [expandedTickers, setExpandedTickers] = useState({});
 
   const stats = useMemo(() => {
     const total = history.length;
@@ -1401,6 +1406,47 @@ function HistoryPage({ history, loadingId, error, onSelect, onDeleteItem }) {
       return true;
     });
   }, [history, searchTerm, filterTone]);
+
+  const toggleExpand = (ticker) => {
+    setExpandedTickers((prev) => ({ ...prev, [ticker]: !prev[ticker] }));
+  };
+
+  const groupedHistory = useMemo(() => {
+    if (viewMode === "flat") return null;
+    const map = new Map();
+    filteredHistory.forEach((item) => {
+      const ticker = item.ticker;
+      if (!map.has(ticker)) {
+        map.set(ticker, []);
+      }
+      map.get(ticker).push(item);
+    });
+    return Array.from(map.entries()).map(([ticker, items]) => {
+      const latest = items[0];
+      const previous = items.slice(1);
+      const prev = previous[0];
+      const priceDelta =
+        latest.close && prev?.close
+          ? ((Number(latest.close) - Number(prev.close)) / Number(prev.close)) * 100
+          : null;
+      const priceDiffAmount =
+        latest.close && prev?.close
+          ? Number(latest.close) - Number(prev.close)
+          : null;
+      const decisionShift =
+        prev && latest.display_decision !== prev.display_decision;
+
+      return {
+        ticker,
+        latest,
+        previous,
+        totalRuns: items.length,
+        priceDelta,
+        priceDiffAmount,
+        decisionShift,
+      };
+    });
+  }, [filteredHistory, viewMode]);
 
   return (
     <main className="page history-page">
@@ -1493,6 +1539,25 @@ function HistoryPage({ history, loadingId, error, onSelect, onDeleteItem }) {
             </button>
           ) : null}
         </div>
+
+        <div className="history-view-mode-toggle">
+          <button
+            type="button"
+            className={`view-mode-btn ${viewMode === "grouped" ? "active" : ""}`}
+            onClick={() => setViewMode("grouped")}
+            title="Vue regroupée par instrument (met en avant la dernière analyse)"
+          >
+            <Layers size={13} /> Par titre
+          </button>
+          <button
+            type="button"
+            className={`view-mode-btn ${viewMode === "flat" ? "active" : ""}`}
+            onClick={() => setViewMode("flat")}
+            title="Flux chronologique brut"
+          >
+            <ListFilter size={13} /> Flux brut
+          </button>
+        </div>
       </section>
 
       {/* History Table Panel */}
@@ -1515,112 +1580,380 @@ function HistoryPage({ history, loadingId, error, onSelect, onDeleteItem }) {
             visible: { opacity: 1, transition: { staggerChildren: 0.03 } },
           }}
         >
-          {filteredHistory.length ? (
-            filteredHistory.map((item) => {
-              const decision = item.display_decision || "Non spécifié";
-              const tone = getDecisionTone(decision);
+          {viewMode === "grouped" ? (
+            groupedHistory && groupedHistory.length ? (
+              groupedHistory.map((group) => {
+                const item = group.latest;
+                const decision = item.display_decision || "Non spécifié";
+                const tone = getDecisionTone(decision);
+                const isExpanded = Boolean(expandedTickers[group.ticker]);
+                const hasPrevious = group.previous.length > 0;
 
-              return (
-                <motion.div
-                  className="history-table-row"
-                  key={item.id}
-                  onClick={() => onSelect(item)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect(item); }}
-                  aria-label={`Ouvrir l’analyse ${item.ticker} du ${item.analysis_date}`}
-                  variants={{
-                    hidden: { opacity: 0, y: 6 },
-                    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } },
-                  }}
-                  whileHover={{ backgroundColor: "rgba(45, 212, 191, 0.035)", x: 2 }}
-                >
-                  <div className="history-ticker-cell">
-                    <strong className="ticker-badge history-symbol-tag">{item.ticker}</strong>
-                    {getCompanyName(item.ticker, true) ? (
-                      <small className="company-subname" style={{ color: "var(--muted)", fontSize: "11px", marginLeft: "6px", fontWeight: "500" }}>
-                        {getCompanyName(item.ticker, true)}
-                      </small>
-                    ) : null}
-                  </div>
+                return (
+                  <div key={group.ticker} className={`history-group-wrap ${isExpanded ? "expanded" : ""}`}>
+                    <motion.div
+                      className="history-table-row"
+                      onClick={() => (hasPrevious ? toggleExpand(group.ticker) : onSelect(item))}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          if (hasPrevious) toggleExpand(group.ticker);
+                          else onSelect(item);
+                        }
+                      }}
+                      variants={{
+                        hidden: { opacity: 0, y: 6 },
+                        visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } },
+                      }}
+                      whileHover={{ backgroundColor: "rgba(45, 212, 191, 0.035)" }}
+                    >
+                      <div className="history-ticker-cell">
+                        <strong className="ticker-badge history-symbol-tag">{group.ticker}</strong>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          {getCompanyName(group.ticker, true) ? (
+                            <span className="company-subname" style={{ color: "var(--muted)", fontSize: "11px", fontWeight: "500" }}>
+                              {getCompanyName(group.ticker, true)}
+                            </span>
+                          ) : null}
+                          {hasPrevious ? (
+                            <button
+                              type="button"
+                              className={`history-versions-pill ${isExpanded ? "active" : ""}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpand(group.ticker);
+                              }}
+                              title="Cliquer pour afficher les versions antérieures"
+                            >
+                              <History size={10} /> {group.totalRuns} analyses {isExpanded ? "▲" : "▼"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
 
-                  <div>
-                    <DecisionBadge decision={decision} size="sm" />
-                  </div>
+                      <div>
+                        <DecisionBadge decision={decision} size="sm" />
+                      </div>
 
-                  <div className="history-sparkline-cell">
-                    {item.sparkline && item.sparkline.length >= 2 ? (
-                      <Sparkline data={item.sparkline} width={88} height={22} tone={tone} showChange={false} />
-                    ) : (
-                      <span className="muted-dash">—</span>
-                    )}
-                  </div>
+                      <div className="history-sparkline-cell">
+                        {item.sparkline && item.sparkline.length >= 2 ? (
+                          <Sparkline data={item.sparkline} width={88} height={22} tone={tone} showChange={false} />
+                        ) : (
+                          <span className="muted-dash">—</span>
+                        )}
+                      </div>
 
-                  <div className="history-price-cell">
-                    {item.close ? (
-                      <strong>{Number(item.close).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $</strong>
-                    ) : (
-                      <span className="muted-dash">—</span>
-                    )}
-                    <small className="history-date-sub">{item.analysis_date}</small>
-                  </div>
+                      <div className="history-price-cell">
+                        {item.close ? (
+                          <strong>{Number(item.close).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $</strong>
+                        ) : (
+                          <span className="muted-dash">—</span>
+                        )}
+                        <small className="history-date-sub">{item.analysis_date}</small>
+                      </div>
 
-                  <div className="history-model-cell">
-                    <span className="history-model-tag" title={item.model}>
-                      {item.model ? item.model.split("/").pop().replace("omniroute/", "") : "standard"}
-                    </span>
-                  </div>
+                      <div className="history-model-cell">
+                        <span className="history-model-tag" title={item.model}>
+                          {item.model ? item.model.split("/").pop().replace("omniroute/", "") : "standard"}
+                        </span>
+                      </div>
 
-                  <div className="history-meta-cell">
-                    <span className="history-time-text">{item.created_at}</span>
-                    {item.blocked ? (
-                      <span className="history-reliability-pill warn">
-                        <AlertTriangle size={11} /> Bloquée
-                      </span>
-                    ) : (
-                      <span className="history-reliability-pill ok">
-                        <CheckCircle2 size={11} /> Conforme
-                      </span>
-                    )}
-                  </div>
+                      <div className="history-meta-cell">
+                        <span className="history-time-text">{item.created_at}</span>
+                        {item.blocked ? (
+                          <span className="history-reliability-pill warn">
+                            <AlertTriangle size={11} /> Bloquée
+                          </span>
+                        ) : (
+                          <span className="history-reliability-pill ok">
+                            <CheckCircle2 size={11} /> Conforme
+                          </span>
+                        )}
+                      </div>
 
-                  <div className="history-action-cell" onClick={(e) => e.stopPropagation()}>
-                    {onDeleteItem ? (
-                      <button
-                        type="button"
-                        className="history-row-delete"
-                        onClick={() => onDeleteItem(item.id)}
-                        title="Supprimer cette analyse de l'historique"
-                        aria-label="Supprimer de l'historique"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    ) : null}
-                    {loadingId === item.id ? (
-                      <LoaderCircle className="spin" size={16} />
-                    ) : (
-                      <button
-                        type="button"
-                        className="history-view-btn"
-                        onClick={() => onSelect(item)}
-                      >
-                        Consulter <ChevronRight size={14} />
-                      </button>
-                    )}
+                      <div className="history-action-cell" onClick={(e) => e.stopPropagation()}>
+                        {onDeleteItem ? (
+                          <button
+                            type="button"
+                            className="history-row-delete"
+                            onClick={() => onDeleteItem(item.id)}
+                            title="Supprimer cette analyse de l'historique"
+                            aria-label="Supprimer de l'historique"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        ) : null}
+                        {loadingId === item.id ? (
+                          <LoaderCircle className="spin" size={16} />
+                        ) : (
+                          <button
+                            type="button"
+                            className="history-view-btn"
+                            onClick={() => onSelect(item)}
+                          >
+                            Consulter <ChevronRight size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+
+                    {/* Accordion Expanded Evolution & Previous Runs */}
+                    <AnimatePresence>
+                      {isExpanded && hasPrevious ? (
+                        <motion.div
+                          className="history-group-subrows"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2, ease: "easeInOut" }}
+                        >
+                          {/* Evolution Diff Card */}
+                          <div className="history-evolution-card">
+                            <div className="history-evolution-header">
+                              <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                                <GitCompare size={15} className="evolution-icon" />
+                                <strong>Évolution des analyses pour {group.ticker}</strong>
+                              </div>
+                              {group.decisionShift ? (
+                                <span className="history-shift-tag">Variation de recommandation</span>
+                              ) : (
+                                <span className="history-stable-tag">Recommandation stable</span>
+                              )}
+                            </div>
+
+                            <div className="history-evolution-flow">
+                              <div className="history-evolution-step">
+                                <span className="step-time">{group.previous[0].created_at}</span>
+                                <DecisionBadge decision={group.previous[0].display_decision} size="sm" />
+                                {group.previous[0].close ? (
+                                  <span className="step-price">{Number(group.previous[0].close).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} $</span>
+                                ) : null}
+                              </div>
+
+                              <div className="history-evolution-arrow">
+                                <span className="arrow-sym">➔</span>
+                                {group.priceDelta !== null ? (
+                                  <span className={`evolution-delta ${group.priceDelta >= 0 ? "up" : "down"}`}>
+                                    {group.priceDelta >= 0 ? "+" : ""}{group.priceDelta.toFixed(2)} % ({group.priceDiffAmount >= 0 ? "+" : ""}{group.priceDiffAmount.toFixed(2)} $)
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              <div className="history-evolution-step">
+                                <span className="step-time">{group.latest.created_at}</span>
+                                <DecisionBadge decision={group.latest.display_decision} size="sm" />
+                                {group.latest.close ? (
+                                  <span className="step-price">{Number(group.latest.close).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} $</span>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            {group.latest.summary || group.previous[0]?.summary ? (
+                              <div className="history-evolution-summaries">
+                                {group.latest.summary ? (
+                                  <div className="evolution-summary-box current">
+                                    <span className="summary-title">Synthèse de la dernière analyse ({group.latest.created_at}) :</span>
+                                    <p>{group.latest.summary.replace(/^#+\s+/gm, "").replace(/\*\*/g, "").slice(0, 320)}...</p>
+                                  </div>
+                                ) : null}
+                                {group.previous[0]?.summary ? (
+                                  <div className="evolution-summary-box previous">
+                                    <span className="summary-title">Synthèse de l'analyse précédente ({group.previous[0].created_at}) :</span>
+                                    <p>{group.previous[0].summary.replace(/^#+\s+/gm, "").replace(/\*\*/g, "").slice(0, 320)}...</p>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+
+                          {/* Sub-rows for each previous run */}
+                          <div className="history-subrows-list">
+                            <span className="history-subrows-heading">Versions antérieures archivées :</span>
+                            {group.previous.map((prevItem) => {
+                              const prevTone = getDecisionTone(prevItem.display_decision);
+                              return (
+                                <div className="history-table-row history-subrow" key={prevItem.id} onClick={() => onSelect(prevItem)}>
+                                  <div className="history-ticker-cell">
+                                    <span className="history-subrow-tree">└─</span>
+                                    <span className="history-subrow-date">{prevItem.created_at}</span>
+                                  </div>
+                                  <div>
+                                    <DecisionBadge decision={prevItem.display_decision} size="sm" />
+                                  </div>
+                                  <div className="history-sparkline-cell">
+                                    {prevItem.sparkline && prevItem.sparkline.length >= 2 ? (
+                                      <Sparkline data={prevItem.sparkline} width={80} height={20} tone={prevTone} showChange={false} />
+                                    ) : (
+                                      <span className="muted-dash">—</span>
+                                    )}
+                                  </div>
+                                  <div className="history-price-cell">
+                                    {prevItem.close ? (
+                                      <strong>{Number(prevItem.close).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $</strong>
+                                    ) : (
+                                      <span className="muted-dash">—</span>
+                                    )}
+                                    <small className="history-date-sub">{prevItem.analysis_date}</small>
+                                  </div>
+                                  <div className="history-model-cell">
+                                    <span className="history-model-tag">{prevItem.model ? prevItem.model.split("/").pop().replace("omniroute/", "") : "standard"}</span>
+                                  </div>
+                                  <div className="history-meta-cell">
+                                    {prevItem.blocked ? (
+                                      <span className="history-reliability-pill warn"><AlertTriangle size={11} /> Bloquée</span>
+                                    ) : (
+                                      <span className="history-reliability-pill ok"><CheckCircle2 size={11} /> Conforme</span>
+                                    )}
+                                  </div>
+                                  <div className="history-action-cell" onClick={(e) => e.stopPropagation()}>
+                                    {onDeleteItem ? (
+                                      <button
+                                        type="button"
+                                        className="history-row-delete"
+                                        onClick={() => onDeleteItem(prevItem.id)}
+                                        title="Supprimer cette version"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    ) : null}
+                                    {loadingId === prevItem.id ? (
+                                      <LoaderCircle className="spin" size={16} />
+                                    ) : (
+                                      <button type="button" className="history-view-btn" onClick={() => onSelect(prevItem)}>
+                                        Consulter <ChevronRight size={14} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
                   </div>
-                </motion.div>
-              );
-            })
+                );
+              })
+            ) : (
+              <div className="empty-state">
+                <History size={36} />
+                <strong>{searchTerm || filterTone !== "all" ? "Aucune analyse trouvée" : "Aucune analyse enregistrée"}</strong>
+                <span>
+                  {searchTerm || filterTone !== "all"
+                    ? "Modifiez vos critères de recherche pour retrouver les rapports archivés."
+                    : "Lancez votre première analyse multi-agents pour qu'elle s'enregistre automatiquement dans votre historique."}
+                </span>
+              </div>
+            )
           ) : (
-            <div className="empty-state">
-              <History size={36} />
-              <strong>{searchTerm || filterTone !== "all" ? "Aucune analyse trouvée" : "Aucune analyse enregistrée"}</strong>
-              <span>
-                {searchTerm || filterTone !== "all"
-                  ? "Modifiez vos critères de recherche pour retrouver les rapports archivés."
-                  : "Lancez votre première analyse multi-agents pour qu'elle s'enregistre automatiquement dans votre historique."}
-              </span>
-            </div>
+            filteredHistory.length ? (
+              filteredHistory.map((item) => {
+                const decision = item.display_decision || "Non spécifié";
+                const tone = getDecisionTone(decision);
+
+                return (
+                  <motion.div
+                    className="history-table-row"
+                    key={item.id}
+                    onClick={() => onSelect(item)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect(item); }}
+                    aria-label={`Ouvrir l’analyse ${item.ticker} du ${item.analysis_date}`}
+                    variants={{
+                      hidden: { opacity: 0, y: 6 },
+                      visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } },
+                    }}
+                    whileHover={{ backgroundColor: "rgba(45, 212, 191, 0.035)", x: 2 }}
+                  >
+                    <div className="history-ticker-cell">
+                      <strong className="ticker-badge history-symbol-tag">{item.ticker}</strong>
+                      {getCompanyName(item.ticker, true) ? (
+                        <small className="company-subname" style={{ color: "var(--muted)", fontSize: "11px", marginLeft: "6px", fontWeight: "500" }}>
+                          {getCompanyName(item.ticker, true)}
+                        </small>
+                      ) : null}
+                    </div>
+
+                    <div>
+                      <DecisionBadge decision={decision} size="sm" />
+                    </div>
+
+                    <div className="history-sparkline-cell">
+                      {item.sparkline && item.sparkline.length >= 2 ? (
+                        <Sparkline data={item.sparkline} width={88} height={22} tone={tone} showChange={false} />
+                      ) : (
+                        <span className="muted-dash">—</span>
+                      )}
+                    </div>
+
+                    <div className="history-price-cell">
+                      {item.close ? (
+                        <strong>{Number(item.close).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $</strong>
+                      ) : (
+                        <span className="muted-dash">—</span>
+                      )}
+                      <small className="history-date-sub">{item.analysis_date}</small>
+                    </div>
+
+                    <div className="history-model-cell">
+                      <span className="history-model-tag" title={item.model}>
+                        {item.model ? item.model.split("/").pop().replace("omniroute/", "") : "standard"}
+                      </span>
+                    </div>
+
+                    <div className="history-meta-cell">
+                      <span className="history-time-text">{item.created_at}</span>
+                      {item.blocked ? (
+                        <span className="history-reliability-pill warn">
+                          <AlertTriangle size={11} /> Bloquée
+                        </span>
+                      ) : (
+                        <span className="history-reliability-pill ok">
+                          <CheckCircle2 size={11} /> Conforme
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="history-action-cell" onClick={(e) => e.stopPropagation()}>
+                      {onDeleteItem ? (
+                        <button
+                          type="button"
+                          className="history-row-delete"
+                          onClick={() => onDeleteItem(item.id)}
+                          title="Supprimer cette analyse de l'historique"
+                          aria-label="Supprimer de l'historique"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      ) : null}
+                      {loadingId === item.id ? (
+                        <LoaderCircle className="spin" size={16} />
+                      ) : (
+                        <button
+                          type="button"
+                          className="history-view-btn"
+                          onClick={() => onSelect(item)}
+                        >
+                          Consulter <ChevronRight size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })
+            ) : (
+              <div className="empty-state">
+                <History size={36} />
+                <strong>{searchTerm || filterTone !== "all" ? "Aucune analyse trouvée" : "Aucune analyse enregistrée"}</strong>
+                <span>
+                  {searchTerm || filterTone !== "all"
+                    ? "Modifiez vos critères de recherche pour retrouver les rapports archivés."
+                    : "Lancez votre première analyse multi-agents pour qu'elle s'enregistre automatiquement dans votre historique."}
+                </span>
+              </div>
+            )
           )}
         </motion.div>
       </section>

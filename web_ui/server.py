@@ -1035,18 +1035,23 @@ def load_history_items() -> list[dict]:
     for item in payload:
         if not isinstance(item, dict):
             continue
-        if "close" not in item or "sparkline" not in item:
-            item_id = item.get("id")
-            if item_id:
-                res_file = REPORTS_DIR / item_id / "result.json"
-                if res_file.is_file():
-                    try:
-                        r = json.loads(res_file.read_text(encoding="utf-8"))
-                        snap = r.get("snapshot") or {}
-                        item.setdefault("close", snap.get("close"))
-                        item.setdefault("sparkline", snap.get("sparkline"))
-                    except (OSError, json.JSONDecodeError):
-                        pass
+        item_id = item.get("id")
+        if item_id:
+            res_file = REPORTS_DIR / item_id / "result.json"
+            if res_file.is_file():
+                try:
+                    r = json.loads(res_file.read_text(encoding="utf-8"))
+                    snap = r.get("snapshot") or {}
+                    if "close" not in item or item.get("close") is None:
+                        item["close"] = snap.get("close")
+                    if "sparkline" not in item or item.get("sparkline") is None:
+                        item["sparkline"] = snap.get("sparkline")
+                    if "summary" not in item or not item.get("summary"):
+                        item["summary"] = r.get("summary")
+                    if "raw_decision" not in item or not item.get("raw_decision"):
+                        item["raw_decision"] = r.get("raw_decision")
+                except (OSError, json.JSONDecodeError):
+                    pass
         enriched.append(item)
     return enriched
 
@@ -1361,13 +1366,17 @@ def save_history(job: dict) -> None:
         "model": job.get("model", MODEL),
         "analysts": job.get("analysts", []),
         "depth": job.get("depth", 1),
+        "raw_decision": result.get("raw_decision"),
         "display_decision": result.get("display_decision"),
+        "summary": result.get("summary"),
+        "close": (result.get("snapshot") or {}).get("close"),
+        "sparkline": (result.get("snapshot") or {}).get("sparkline"),
         "blocked": (result.get("reliability") or {}).get("blocked", True),
         "created_at": job["created_at"],
         "report_path": str(job.get("report_path") or ""),
     }
     current = [item] + [entry for entry in current if entry.get("id") != item["id"]]
-    HISTORY_FILE.write_text(json.dumps(current[:100], ensure_ascii=False, indent=2))
+    HISTORY_FILE.write_text(json.dumps(current[:100], ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def run_analysis(job_id: str, payload: dict) -> None:
