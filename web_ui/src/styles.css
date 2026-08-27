@@ -1278,10 +1278,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .history-table-head, .history-table-row {
   display: grid;
-  grid-template-columns: 140px 150px 1.4fr 140px 180px 120px;
-  gap: 16px;
+  grid-template-columns: minmax(170px, 1.3fr) 150px 110px 125px 120px 160px 125px;
+  gap: 14px;
   align-items: center;
-  padding: 0 22px;
+  padding: 0 20px;
 }
 .history-table-head {
   min-height: 52px;
@@ -1302,81 +1302,143 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   cursor: pointer;
   min-height: 64px;
   transition: background 140ms ease, transform 140ms ease;
+  user-select: none;
 }
 .history-table-row:hover {
-  background: rgba(45, 212, 191, 0.035);
+  background: rgba(45, 212, 191, 0.04);
 }
-.history-table-row:disabled {
-  cursor: wait;
-  opacity: 0.72;
+.history-table-row:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: -2px;
 }
 .history-table-row:last-child {
   border-bottom: 0;
 }
-.history-ticker-cell .ticker-badge {
-  font-family: var(--font-heading);
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.01em;
+
+.history-ticker-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.history-date-cell, .history-created-cell {
+.history-symbol-tag {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-size: 12px;
+  justify-content: center;
+  min-width: 44px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: var(--font-heading);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: 0.02em;
+}
+.history-sparkline-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.history-price-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.history-price-cell strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+.history-date-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+.history-model-cell {
+  display: flex;
+  align-items: center;
+}
+.history-model-tag {
+  display: inline-block;
+  max-width: 110px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  padding: 2.5px 7px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.history-meta-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.history-time-text {
+  font-size: 11.5px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.date-icon, .time-icon {
-  color: #64748b;
-  flex: 0 0 auto;
+.history-action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
-.history-decision-pill {
+.history-row-delete {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 140ms ease;
+  padding: 0;
+}
+.history-row-delete:hover {
+  color: var(--danger);
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.3);
+}
+.history-view-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  gap: 3px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--mint);
+  transition: color 140ms ease;
 }
-.history-decision-pill .status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+.history-view-btn:hover {
+  color: #5eead4;
+  text-decoration: underline;
 }
-.history-decision-pill.positive {
-  background: var(--signal-bullish-bg);
-  color: var(--signal-bullish-text);
-  border: 1px solid var(--signal-bullish-border);
+.muted-dash {
+  color: #475569;
+  font-size: 13px;
 }
-.history-decision-pill.positive .status-dot { background: var(--signal-bullish); box-shadow: 0 0 8px var(--signal-bullish-glow); }
-
-.history-decision-pill.negative {
-  background: var(--signal-bearish-bg);
-  color: var(--signal-bearish-text);
-  border: 1px solid var(--signal-bearish-border);
-}
-.history-decision-pill.negative .status-dot { background: var(--signal-bearish); box-shadow: 0 0 8px var(--signal-bearish-glow); }
-
-.history-decision-pill.neutral {
-  background: var(--signal-neutral-bg);
-  color: var(--signal-neutral-text);
-  border: 1px solid var(--signal-neutral-border);
-}
-.history-decision-pill.neutral .status-dot { background: var(--signal-neutral); box-shadow: 0 0 8px var(--signal-neutral-glow); }
 
 .history-reliability-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
+  gap: 4px;
+  font-size: 10.5px;
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: 5px;
 }
 .history-reliability-pill.ok {
   color: var(--mint);
@@ -1387,19 +1449,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: var(--amber);
   background: var(--amber-soft);
   border: 1px solid rgba(245, 158, 11, 0.35);
-}
-.history-action-cell {
-  text-align: right;
-  display: flex;
-  justify-content: flex-end;
-}
-.history-view-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--mint);
 }
 
 .table-panel, .model-list-panel, .settings-panel { overflow: hidden; }
@@ -2803,20 +2852,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .strength-bars {
   display: inline-flex;
   align-items: flex-end;
-  gap: 2px;
-  height: 10px;
-  margin-right: 1px;
+  gap: 2.5px;
+  height: 11px;
+  margin-right: 2px;
 }
 .strength-bars .bar {
   display: block;
-  width: 2.5px;
-  border-radius: 1px;
-  background: rgba(255, 255, 255, 0.14);
+  width: 3px;
+  border-radius: 1.5px;
+  background: rgba(255, 255, 255, 0.22);
   transition: all 140ms ease;
 }
-.strength-bars .bar.b1 { height: 4px; }
-.strength-bars .bar.b2 { height: 7px; }
-.strength-bars .bar.b3 { height: 10px; }
+.strength-bars .bar.b1 { height: 4.5px; }
+.strength-bars .bar.b2 { height: 7.5px; }
+.strength-bars .bar.b3 { height: 11px; }
 
 /* === HAUSSIER / ACHAT TIERS === */
 /* Tier 3 : Achat Fort (Force Maximale) - Vert Émeraude Électrique */

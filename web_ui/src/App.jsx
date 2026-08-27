@@ -51,6 +51,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Trash2,
   TrendingUp,
   Users,
   X,
@@ -1368,7 +1369,7 @@ function ResultPage({ job, onReset, historical = false, onBackHistory, onAddToWa
   );
 }
 
-function HistoryPage({ history, loadingId, error, onSelect }) {
+function HistoryPage({ history, loadingId, error, onSelect, onDeleteItem }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTone, setFilterTone] = useState("all");
 
@@ -1466,7 +1467,7 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
             className={`filter-chip ${filterTone === "buy" ? "active" : ""}`}
             onClick={() => setFilterTone("buy")}
           >
-            <i className="dot dot-buy" /> Achats ({stats.buyCount})
+            <i className="dot dot-buy" /> Haussiers ({stats.buyCount})
           </button>
           <button
             type="button"
@@ -1480,7 +1481,7 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
             className={`filter-chip ${filterTone === "sell" ? "active" : ""}`}
             onClick={() => setFilterTone("sell")}
           >
-            <i className="dot dot-sell" /> Ventes ({stats.sellCount})
+            <i className="dot dot-sell" /> Baissiers / Ventes ({stats.sellCount})
           </button>
           {stats.blockedCount > 0 ? (
             <button
@@ -1498,11 +1499,12 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
       <section className="history-table-panel">
         <div className="history-table-head">
           <span>Instrument</span>
-          <span>Date Marché</span>
           <span>Décision IA</span>
-          <span>Fiabilité</span>
-          <span>Horodatage</span>
-          <span style={{ textAlign: "right" }}>Action</span>
+          <span>Tendance (30 j)</span>
+          <span>Cours vérifié</span>
+          <span>Modèle IA</span>
+          <span>Date & Contrôle</span>
+          <span style={{ textAlign: "right" }}>Actions</span>
         </div>
 
         <motion.div
@@ -1519,11 +1521,13 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
               const tone = getDecisionTone(decision);
 
               return (
-                <motion.button
+                <motion.div
                   className="history-table-row"
                   key={item.id}
                   onClick={() => onSelect(item)}
-                  disabled={loadingId === item.id}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect(item); }}
                   aria-label={`Ouvrir l’analyse ${item.ticker} du ${item.analysis_date}`}
                   variants={{
                     hidden: { opacity: 0, y: 6 },
@@ -1532,7 +1536,7 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
                   whileHover={{ backgroundColor: "rgba(45, 212, 191, 0.035)", x: 2 }}
                 >
                   <div className="history-ticker-cell">
-                    <strong className="ticker-badge">{item.ticker}</strong>
+                    <strong className="ticker-badge history-symbol-tag">{item.ticker}</strong>
                     {getCompanyName(item.ticker, true) ? (
                       <small className="company-subname" style={{ color: "var(--muted)", fontSize: "11px", marginLeft: "6px", fontWeight: "500" }}>
                         {getCompanyName(item.ticker, true)}
@@ -1540,42 +1544,71 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
                     ) : null}
                   </div>
 
-                  <div className="history-date-cell">
-                    <Calendar size={13} className="date-icon" />
-                    <span>{item.analysis_date}</span>
-                  </div>
-
                   <div>
                     <DecisionBadge decision={decision} size="sm" />
                   </div>
 
-                  <div>
+                  <div className="history-sparkline-cell">
+                    {item.sparkline && item.sparkline.length >= 2 ? (
+                      <Sparkline data={item.sparkline} width={88} height={22} tone={tone} showChange={false} />
+                    ) : (
+                      <span className="muted-dash">—</span>
+                    )}
+                  </div>
+
+                  <div className="history-price-cell">
+                    {item.close ? (
+                      <strong>{Number(item.close).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $</strong>
+                    ) : (
+                      <span className="muted-dash">—</span>
+                    )}
+                    <small className="history-date-sub">{item.analysis_date}</small>
+                  </div>
+
+                  <div className="history-model-cell">
+                    <span className="history-model-tag" title={item.model}>
+                      {item.model ? item.model.split("/").pop().replace("omniroute/", "") : "standard"}
+                    </span>
+                  </div>
+
+                  <div className="history-meta-cell">
+                    <span className="history-time-text">{item.created_at}</span>
                     {item.blocked ? (
                       <span className="history-reliability-pill warn">
-                        <AlertTriangle size={12} /> Bloquée
+                        <AlertTriangle size={11} /> Bloquée
                       </span>
                     ) : (
                       <span className="history-reliability-pill ok">
-                        <CheckCircle2 size={12} /> Contrôlée
+                        <CheckCircle2 size={11} /> Conforme
                       </span>
                     )}
                   </div>
 
-                  <div className="history-created-cell">
-                    <Clock3 size={13} className="time-icon" />
-                    <span>{item.created_at}</span>
-                  </div>
-
-                  <div className="history-action-cell">
+                  <div className="history-action-cell" onClick={(e) => e.stopPropagation()}>
+                    {onDeleteItem ? (
+                      <button
+                        type="button"
+                        className="history-row-delete"
+                        onClick={() => onDeleteItem(item.id)}
+                        title="Supprimer cette analyse de l'historique"
+                        aria-label="Supprimer de l'historique"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    ) : null}
                     {loadingId === item.id ? (
                       <LoaderCircle className="spin" size={16} />
                     ) : (
-                      <span className="history-view-btn">
+                      <button
+                        type="button"
+                        className="history-view-btn"
+                        onClick={() => onSelect(item)}
+                      >
                         Consulter <ChevronRight size={14} />
-                      </span>
+                      </button>
                     )}
                   </div>
-                </motion.button>
+                </motion.div>
               );
             })
           ) : (
@@ -1920,6 +1953,16 @@ export default function App() {
     }
   };
 
+  const handleDeleteHistoryItem = async (historyId) => {
+    try {
+      await api(`/api/history/${historyId}`, { method: "DELETE" });
+      setHistory((prev) => prev.filter((item) => item.id !== historyId));
+      showToast("Analyse supprimée de l’historique.");
+    } catch (err) {
+      showToast(`Erreur : ${err.message}`);
+    }
+  };
+
   const handleSelectDemo = (demo) => {
     setJob(demo);
     navigate("analysis", { ticker: demo.ticker });
@@ -2017,7 +2060,13 @@ export default function App() {
           ) : null}
           {page === "history" ? (
             <motion.div key="history" variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
-              <HistoryPage history={history} loadingId={loadingHistoryId} error={historyError} onSelect={openHistory} />
+              <HistoryPage
+                history={history}
+                loadingId={loadingHistoryId}
+                error={historyError}
+                onSelect={openHistory}
+                onDeleteItem={handleDeleteHistoryItem}
+              />
             </motion.div>
           ) : null}
           {page === "history-detail" && historyJob ? (

@@ -12,6 +12,7 @@ import json
 import mimetypes
 import os
 import re
+import shutil
 import sys
 import threading
 import time
@@ -1025,10 +1026,44 @@ def record_graph_node_error(job_id: str, node_name: str, error) -> None:  # noqa
 
 def load_history_items() -> list[dict]:
     try:
-        payload = json.loads(HISTORY_FILE.read_text()) if HISTORY_FILE.exists() else []
+        payload = json.loads(HISTORY_FILE.read_text(encoding="utf-8")) if HISTORY_FILE.exists() else []
     except (OSError, json.JSONDecodeError):
         return []
-    return payload if isinstance(payload, list) else []
+    if not isinstance(payload, list):
+        return []
+    enriched = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        if "close" not in item or "sparkline" not in item:
+            item_id = item.get("id")
+            if item_id:
+                res_file = REPORTS_DIR / item_id / "result.json"
+                if res_file.is_file():
+                    try:
+                        r = json.loads(res_file.read_text(encoding="utf-8"))
+                        snap = r.get("snapshot") or {}
+                        item.setdefault("close", snap.get("close"))
+                        item.setdefault("sparkline", snap.get("sparkline"))
+                    except (OSError, json.JSONDecodeError):
+                        pass
+        enriched.append(item)
+    return enriched
+
+
+def delete_history_item(history_id: str) -> bool:
+    if not re.fullmatch(r"[a-f0-9-]+", history_id):
+        return False
+    try:
+        items = load_history_items()
+        updated = [item for item in items if item.get("id") != history_id]
+        HISTORY_FILE.write_text(json.dumps(updated, ensure_ascii=False, indent=2), encoding="utf-8")
+        report_dir = REPORTS_DIR / history_id
+        if report_dir.is_dir():
+            shutil.rmtree(report_dir, ignore_errors=True)
+        return True
+    except OSError:
+        return False
 
 
 def historical_report_path(history_id: str) -> Path | None:
@@ -1875,6 +1910,19 @@ class Handler(BaseHTTPRequestHandler):
         clean_payload = {"ticker": ticker, "date": analysis_date, "analysts": analysts, "depth": depth}
         threading.Thread(target=run_analysis, args=(job_id, clean_payload), daemon=True).start()
         self.send_json(public_job(job), HTTPStatus.ACCEPTED)
+
+    def do_DELETE(self):  # noqa: N802
+        path = urlparse(self.path).path
+        history_match = re.fullmatch(r"/api/history/([a-f0-9-]+)", path)
+        if history_match:
+            history_id = history_match.group(1)
+            success = delete_history_item(history_id)
+            if success:
+                self.send_json({"ok": True, "deleted_id": history_id})
+            else:
+                self.send_json({"error": "Impossible de supprimer l'élément d'historique"}, HTTPStatus.NOT_FOUND)
+            return
+        self.send_json({"error": "Route inconnue"}, HTTPStatus.NOT_FOUND)
 
     def serve_static(self, path: str):
         if not DIST_DIR.exists():
