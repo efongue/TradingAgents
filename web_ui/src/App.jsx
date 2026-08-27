@@ -63,7 +63,6 @@ import { api } from "./api.js";
 import ScannerPage from "./ScannerPage.jsx";
 import ComparePage from "./ComparePage.jsx";
 import WatchlistPage, { addToWatchlist, isInWatchlist, toggleWatchlist } from "./WatchlistPage.jsx";
-import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
 import {
   getDecisionTone,
@@ -262,48 +261,6 @@ function PipelineGuidePopover() {
   );
 }
 
-function InstantDemoBanner({ onSelectDemo }) {
-  return (
-    <section className="ftux-discovery-banner" aria-label="Découverte instantanée">
-      <div className="ftux-banner-header">
-        <Sparkles size={20} className="sparkle-icon" />
-        <div>
-          <h3>Découverte Instantanée (Mode Démo Sans Attente)</h3>
-          <p>Explorez immédiatement 3 analyses multi-agents complètes avec consensus, débats contradictoires et données certifiées.</p>
-        </div>
-      </div>
-      <div className="ftux-cards-grid">
-        {Object.values(DEMO_ANALYSES).map((demo) => {
-          const rawDecision = demo.result.display_decision;
-          const tone = getDecisionTone(rawDecision);
-          const formattedDecision = formatDecisionLabel(rawDecision);
-          return (
-            <motion.button
-              key={demo.ticker}
-              type="button"
-              className={`ftux-card ${tone}`}
-              onClick={() => onSelectDemo(demo)}
-              whileHover={{ y: -3, scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="ftux-card-top">
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                  <strong>{demo.ticker}</strong>
-                  <span className="ftux-company-name" style={{ fontSize: "11px", color: "var(--muted)", fontWeight: "550" }}>
-                    {getCompanyName(demo.ticker)}
-                  </span>
-                </div>
-                <span className={`ftux-decision-pill ${tone}`}>{formattedDecision}</span>
-              </div>
-              <p>{demo.result.consensus?.verdict || demo.result.summary.slice(0, 85)}</p>
-              <span className="ftux-explore-link">Explorer l’analyse &rarr;</span>
-            </motion.button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
 function Topbar({ onMenu, online, model }) {
   return (
@@ -754,7 +711,7 @@ function SkeletonLivePreview({ ticker }) {
   );
 }
 
-function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analystsError, pollWarning, onSubmit, onReset, onSelectDemo, onAddToWatchlist, onCompareTicker, onShowToast }) {
+function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analystsError, pollWarning, onSubmit, onReset, onAddToWatchlist, onCompareTicker, onShowToast }) {
   const busy = job && ["queued", "running"].includes(job.status);
   const result = job?.result;
 
@@ -788,10 +745,7 @@ function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analyst
           <Workflow job={job} defaultDataSteps={dataSteps} connectionUnverified={Boolean(pollWarning)} />
           <ReliabilityRail job={job} connectionUnverified={Boolean(pollWarning)} />
         </motion.div>
-      ) : (
-        /* When idle: display 1-click discovery demo banner */
-        <InstantDemoBanner onSelectDemo={onSelectDemo} />
-      )}
+      ) : null}
     </main>
   );
 }
@@ -2316,12 +2270,6 @@ export default function App() {
     }
   };
 
-  const handleSelectDemo = (demo) => {
-    setJob(demo);
-    navigate("analysis", { ticker: demo.ticker });
-    showToast(`Analyse démo de ${demo.ticker} chargée instantanément !`);
-  };
-
   const handleAddToWatchlist = (ticker) => {
     addToWatchlist(ticker);
     showToast(`${ticker} ajouté à votre Watchlist !`);
@@ -2371,7 +2319,6 @@ export default function App() {
                 pollWarning={pollWarning}
                 onSubmit={submit}
                 onReset={reset}
-                onSelectDemo={handleSelectDemo}
                 onAddToWatchlist={handleAddToWatchlist}
                 onCompareTicker={handleCompareSingleTicker}
                 onShowToast={showToast}
@@ -2384,7 +2331,7 @@ export default function App() {
                 online={status.online}
                 job={scanJob}
                 setJob={setScanJob}
-                onOpenAnalysis={(analysisJobId) => openHistory({ id: analysisJobId })}
+                onOpenAnalysis={openHistory}
                 onAddToWatchlist={handleAddToWatchlist}
                 onCompareTickers={handleCompareTickers}
               />
@@ -2395,9 +2342,12 @@ export default function App() {
               <ComparePage
                 history={history}
                 initialTickers={compareTickers}
-                onOpenAnalysis={(analysisJob) => {
-                  setJob(analysisJob);
-                  navigate("analysis", { ticker: analysisJob.ticker });
+                onOpenAnalysis={(item) => {
+                  if (item?.id) openHistory(item);
+                  else if (item?.ticker) {
+                    setForm((f) => ({ ...f, ticker: item.ticker }));
+                    navigate("analysis", { ticker: item.ticker });
+                  }
                 }}
               />
             </motion.div>
@@ -2407,7 +2357,6 @@ export default function App() {
               <WatchlistPage
                 onAnalyzeTicker={handleAnalyzeFromWatchlist}
                 onCompareTicker={handleCompareSingleTicker}
-                onOpenDemo={handleSelectDemo}
               />
             </motion.div>
           ) : null}

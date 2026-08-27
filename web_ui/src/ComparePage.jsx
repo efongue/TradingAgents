@@ -21,7 +21,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
 import { getDecisionTone, formatDecisionLabel, getDecisionStrength } from "./decisionUtils.js";
 import DecisionBadge from "./DecisionBadge.jsx";
@@ -31,18 +30,19 @@ function formatNumber(value, digits = 2) {
   return Number(value).toLocaleString("fr-FR", { maximumFractionDigits: digits });
 }
 
-export default function ComparePage({ history = [], initialTickers = ["NVDA", "MSFT"], onOpenAnalysis }) {
-  const [selectedTickers, setSelectedTickers] = useState(initialTickers);
+export default function ComparePage({ history = [], initialTickers, onOpenAnalysis }) {
+  const defaultTickers = useMemo(() => {
+    if (initialTickers && initialTickers.length) return initialTickers;
+    const fromHistory = Array.from(new Set((history || []).map((h) => h.ticker).filter(Boolean)));
+    return fromHistory.slice(0, 2);
+  }, [history, initialTickers]);
+
+  const [selectedTickers, setSelectedTickers] = useState(defaultTickers);
   const [customInput, setCustomInput] = useState("");
 
-  // Build lookup of available analyses (history items + demo analyses)
+  // Build lookup of available analyses purely from history items
   const analysisCatalog = useMemo(() => {
     const map = {};
-    // Add demo analyses first
-    Object.keys(DEMO_ANALYSES).forEach((ticker) => {
-      map[ticker] = DEMO_ANALYSES[ticker];
-    });
-    // Add history items (overriding demo if newer/real)
     (history || []).forEach((item) => {
       if (item?.ticker && item?.result) {
         map[item.ticker] = item;
@@ -73,7 +73,7 @@ export default function ComparePage({ history = [], initialTickers = ["NVDA", "M
   };
 
   const availableSuggestions = useMemo(() => {
-    const all = Array.from(new Set([...Object.keys(DEMO_ANALYSES), ...history.map((h) => h.ticker).filter(Boolean)]));
+    const all = Array.from(new Set((history || []).map((h) => h.ticker).filter(Boolean)));
     return all.filter((s) => !selectedTickers.includes(s));
   }, [history, selectedTickers]);
 
@@ -180,7 +180,7 @@ export default function ComparePage({ history = [], initialTickers = ["NVDA", "M
               >
                 <div className="compare-card-header">
                   <div>
-                    <span className="compare-badge">{job.is_demo ? "DÉMO INSTANTANÉE" : "ANALYSE RÉELLE"}</span>
+                    <span className="compare-badge">ANALYSE MULTI-AGENTS</span>
                     <h2>{job.ticker}</h2>
                     {getCompanyName(job.ticker) ? (
                       <span className="compare-company-name" style={{ fontSize: "12px", color: "var(--muted)", fontWeight: "500", display: "block", marginBottom: "4px" }}>

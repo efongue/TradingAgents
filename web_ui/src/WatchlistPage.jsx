@@ -13,7 +13,6 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
-import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
 import { getDecisionTone, formatDecisionLabel, getDecisionStrength, isPositiveDecision } from "./decisionUtils.js";
 import DecisionBadge from "./DecisionBadge.jsx";
@@ -84,7 +83,7 @@ export function addToWatchlist(symbol, note = "") {
   return updated;
 }
 
-export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpenDemo }) {
+export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker }) {
   const [items, setItems] = useState(getStoredWatchlist);
   const [newSymbol, setNewSymbol] = useState("");
   const [searchFilter, setSearchFilter] = useState("");
@@ -117,8 +116,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
   }, [items, searchFilter]);
 
   const bullishCount = items.filter((item) => {
-    const demo = DEMO_ANALYSES[item.symbol];
-    const decision = item.last_decision || (demo ? demo.result.display_decision : "");
+    const decision = item.last_decision || "";
     return isPositiveDecision(decision);
   }).length;
 
@@ -162,8 +160,8 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
         <div className="watchlist-kpi-box">
           <Sparkles size={20} className="kpi-icon" />
           <div>
-            <span className="kpi-label">Mode Démo Instantané</span>
-            <span className="kpi-subtext">3 analyses certifiées pré-chargées</span>
+            <span className="kpi-label">Actions Prêtes</span>
+            <span className="kpi-subtext">Lancement direct en 1 clic</span>
           </div>
         </div>
       </section>
@@ -268,10 +266,8 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
             </thead>
             <tbody>
               {filteredItems.map((item) => {
-                const demo = DEMO_ANALYSES[item.symbol];
-                const decision = item.last_decision || (demo ? demo.result.display_decision : "À analyser");
+                const decision = item.last_decision || "À analyser";
                 const tone = getDecisionTone(decision);
-                const consensus = demo?.result?.consensus || { bullish: 70, neutral: 20, bearish: 10 };
 
                 return (
                   <tr key={item.symbol}>
@@ -283,40 +279,20 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                             {getCompanyName(item.symbol, true)}
                           </small>
                         ) : null}
-                        {demo ? <span className="demo-badge">Certifié</span> : null}
                       </div>
                     </td>
                     <td>
                       <DecisionBadge decision={decision} size="sm" />
                     </td>
                     <td>
-                      {demo?.result?.snapshot?.sparkline ? (
-                        <Sparkline
-                          data={demo.result.snapshot.sparkline}
-                          width={95}
-                          height={24}
-                          tone={tone}
-                          showChange={true}
-                        />
-                      ) : (
-                        <span className="muted-text">—</span>
-                      )}
+                      <span className="muted-text">—</span>
                     </td>
                     <td>
-                      {demo ? (
-                        <div className="watchlist-mini-consensus" title={`${consensus.bullish}% Haussier`}>
-                          <div className="mini-bar">
-                            <span style={{ width: `${consensus.bullish}%` }} />
-                          </div>
-                          <span className="mini-label">{consensus.bullish}% Haussier</span>
-                        </div>
-                      ) : (
-                        <span className="muted-text">—</span>
-                      )}
+                      <span className="muted-text">—</span>
                     </td>
                     <td>
                       <span className="watchlist-table-note">
-                        {item.note || (demo ? demo.result.consensus?.verdict : "Prêt pour analyse.")}
+                        {item.note || "Prêt pour analyse."}
                       </span>
                     </td>
                     <td>
@@ -331,16 +307,6 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                         >
                           <Play size={13} fill="currentColor" /> Analyser
                         </button>
-                        {demo ? (
-                          <button
-                            type="button"
-                            className="secondary-button compact"
-                            onClick={() => onOpenDemo(demo)}
-                            title="Voir démo instantanée"
-                          >
-                            <Sparkles size={13} /> Démo
-                          </button>
-                        ) : null}
                         <button
                           type="button"
                           className="secondary-button compact"
@@ -370,11 +336,8 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
         <div className="watchlist-grid">
           <AnimatePresence>
             {filteredItems.map((item) => {
-              const demo = DEMO_ANALYSES[item.symbol];
-              const decision = item.last_decision || (demo ? demo.result.display_decision : "À analyser");
+              const decision = item.last_decision || "À analyser";
               const tone = getDecisionTone(decision);
-              const consensus = demo?.result?.consensus || { bullish: 75, neutral: 15, bearish: 10 };
-
               const strength = getDecisionStrength(decision);
 
               return (
@@ -396,44 +359,14 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                             {getCompanyName(item.symbol)}
                           </span>
                         ) : null}
-                        {demo ? <span className="demo-badge">Certifié</span> : null}
                       </div>
                       <span className="watchlist-added-date">Ajouté le {item.added_at}</span>
                     </div>
                     <DecisionBadge decision={decision} size="md" />
                   </div>
 
-                  {demo?.result?.snapshot?.sparkline ? (
-                    <div className="watchlist-card-sparkline-row">
-                      <div className="sparkline-trend-info">
-                        <span className="sparkline-trend-label">Tendance 30 jours</span>
-                        {demo.result.snapshot.close ? (
-                          <strong className="sparkline-last-price">{demo.result.snapshot.close.toLocaleString("fr-FR")} $</strong>
-                        ) : null}
-                      </div>
-                      <Sparkline
-                        data={demo.result.snapshot.sparkline}
-                        width={115}
-                        height={28}
-                        tone={tone}
-                        showChange={true}
-                      />
-                    </div>
-                  ) : null}
-
-                  {demo ? (
-                    <div className="watchlist-card-consensus">
-                      <div className="consensus-bar-track">
-                        <div className="consensus-fill bullish" style={{ width: `${consensus.bullish}%` }} />
-                        <div className="consensus-fill neutral" style={{ width: `${consensus.neutral}%` }} />
-                        <div className="consensus-fill bearish" style={{ width: `${consensus.bearish}%` }} />
-                      </div>
-                      <span className="consensus-mini-text">{consensus.bullish}% Consensus Haussier</span>
-                    </div>
-                  ) : null}
-
                   <p className="watchlist-note">
-                    {item.note || (demo ? demo.result.consensus?.verdict : "Prêt pour une analyse multi-agents détaillée.")}
+                    {item.note || "Prêt pour une analyse multi-agents détaillée."}
                   </p>
 
                   <div className="watchlist-actions">
@@ -444,15 +377,6 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                     >
                       <Play size={14} fill="currentColor" /> Analyser
                     </button>
-                    {demo ? (
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => onOpenDemo(demo)}
-                      >
-                        <Sparkles size={14} /> Démo
-                      </button>
-                    ) : null}
                     <button
                       type="button"
                       className="secondary-button"
