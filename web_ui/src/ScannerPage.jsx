@@ -55,12 +55,13 @@ function statusCopy(candidate) {
   }[candidate.analysis_status] || "Préfiltré";
 }
 
-function ScanProgress({ job }) {
+function ScanProgress({ job, onReset }) {
   const screening = job.screen_progress || { completed: 0, total: 0 };
   const analysis = job.analysis_progress || { completed: 0, total: 0 };
   const screenWidth = screening.total ? (screening.completed / screening.total) * 100 : 0;
   const analysisWidth = analysis.total ? (analysis.completed / analysis.total) * 100 : 0;
   const activeAnalysis = job.active_analysis;
+  const isDoneOrError = ["complete", "error"].includes(job.status);
 
   return (
     <motion.section
@@ -78,7 +79,19 @@ function ScanProgress({ job }) {
             <p>{job.active_symbol ? `Analyse de ${job.active_symbol}` : job.logs?.at(-1)}</p>
           </div>
         </div>
-        <span className="scanner-elapsed">{job.elapsed}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {isDoneOrError && onReset ? (
+            <button
+              type="button"
+              className="secondary-button compact"
+              onClick={onReset}
+              title="Effacer et préparer un nouveau scan"
+            >
+              <RefreshCw size={13} /> Nouveau scan
+            </button>
+          ) : null}
+          <span className="scanner-elapsed">{job.elapsed}</span>
+        </div>
       </div>
       <div className="scanner-progress-grid">
         <div>
@@ -363,7 +376,7 @@ export default function ScannerPage({ online, job, setJob, onOpenAnalysis, onAdd
       {!online ? <div className="connection-error"><AlertTriangle size={18} /> La passerelle IA doit être disponible pour analyser les candidats.</div> : null}
       {error ? <div className="connection-error"><AlertTriangle size={18} /> {error}</div> : null}
       {job?.status === "error" ? <div className="connection-error"><AlertTriangle size={18} /> {job.error}</div> : null}
-      {job ? <ScanProgress job={job} /> : (
+      {job ? <ScanProgress job={job} onReset={() => setJob(null)} /> : (
         <section className="scanner-empty-state">
           <ScanSearch size={36} />
           <h2>Un classement en deux temps</h2>
