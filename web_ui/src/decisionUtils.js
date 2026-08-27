@@ -67,22 +67,18 @@ export function formatDecisionLabel(decision) {
   // Strong Buy / Achat Fort
   if (/STRONG\s*BUY|ACHAT\s*FORT|ACHETER\s*FORT/.test(upper)) return "ACHAT FORT";
   // Overweight / Surpondérer
-  if (/OVERWEIGHT|SURPOND[EÉ]RER/.test(upper)) return "SURPONDÉRER";
-  // Outperform / Surperformer
-  if (/OUTPERFORM|SURPERFORMER/.test(upper)) return "SURPERFORMER";
+  if (/OVERWEIGHT|SURPOND[EÉ]R|OUTPERFORM|SURPERFORM/.test(upper)) return "SURPONDÉRER";
   // Accumulate / Accumuler / Renforcer
-  if (/ACCUMULAT(E|ER)|RENFORCER/.test(upper)) return "ACCUMULER";
+  if (/ACCUMUL|RENFORC/.test(upper)) return "ACCUMULER";
   // Buy / Acheter
   if (/^BUY$|^ACHAT$|^ACHETER$/.test(upper) || /ACHETER|BUY/.test(upper)) return "ACHETER";
 
   // Strong Sell / Vente Forte
   if (/STRONG\s*SELL|VENTE\s*FORTE|VENDRE\s*FORT/.test(upper)) return "VENTE FORTE";
   // Underweight / Sous-pondérer
-  if (/UNDERWEIGHT|SOUS[\s-]*POND[EÉ]RER/.test(upper)) return "SOUS-PONDÉRER";
-  // Underperform / Sous-performer
-  if (/UNDERPERFORM|SOUS[\s-]*PERFORMER/.test(upper)) return "SOUS-PERFORMER";
+  if (/UNDERWEIGHT|SOUS[\s-]*POND[EÉ]R|UNDERPERFORM|SOUS[\s-]*PERFORM/.test(upper)) return "SOUS-PONDÉRER";
   // Reduce / Alléger
-  if (/REDUCE|ALL[EÉ]GER|R[EÉ]DUIRE/.test(upper)) return "ALLÉGER";
+  if (/REDUCE|ALL[EÉ]G|R[EÉ]DUIRE/.test(upper)) return "ALLÉGER";
   // Sell / Vendre
   if (/^SELL$|^VENTE$|^VENDRE$/.test(upper) || /VENDRE|SELL/.test(upper)) return "VENDRE";
 
@@ -145,7 +141,7 @@ export function getDecisionStrength(decision) {
     };
   }
   // Force 2 : Surpondérer / Surperformer (Force Stratégique)
-  if (/OVERWEIGHT|SURPOND[EÉ]RER|OUTPERFORM|SURPERFORMER/.test(upper)) {
+  if (/OVERWEIGHT|SURPOND[EÉ]R|OUTPERFORM|SURPERFORM/.test(upper)) {
     return {
       level: 2,
       tier: "strategic",
@@ -156,7 +152,7 @@ export function getDecisionStrength(decision) {
     };
   }
   // Force 1 : Acheter / Accumuler (Force Modérée / Standard)
-  if (/BUY|ACHAT|ACHETER|ACCUMULAT|RENFORCER|HAUSSIER|BULLISH/.test(upper)) {
+  if (/BUY|ACHAT|ACHETER|ACCUMUL|RENFORC|HAUSSIER|BULLISH/.test(upper)) {
     return {
       level: 1,
       tier: "moderate",
@@ -180,7 +176,7 @@ export function getDecisionStrength(decision) {
     };
   }
   // Force 2 : Sous-pondérer / Sous-performer
-  if (/UNDERWEIGHT|SOUS[\s-]*POND[EÉ]RER|UNDERPERFORM|SOUS[\s-]*PERFORMER/.test(upper)) {
+  if (/UNDERWEIGHT|SOUS[\s-]*POND[EÉ]R|UNDERPERFORM|SOUS[\s-]*PERFORM/.test(upper)) {
     return {
       level: 2,
       tier: "strategic",
@@ -191,7 +187,7 @@ export function getDecisionStrength(decision) {
     };
   }
   // Force 1 : Vendre / Alléger / Réduire
-  if (/SELL|VENTE|VENDRE|ALL[EÉ]GER|R[EÉ]DUIRE|BAISSIER|BEARISH|SHORT/.test(upper)) {
+  if (/SELL|VENTE|VENDRE|ALL[EÉ]G|R[EÉ]DUIRE|BAISSIER|BEARISH|SHORT/.test(upper)) {
     return {
       level: 1,
       tier: "moderate",

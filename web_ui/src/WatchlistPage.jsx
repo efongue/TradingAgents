@@ -353,7 +353,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                       </div>
                       <span className="watchlist-added-date">Ajouté le {item.added_at}</span>
                     </div>
-                    <DecisionBadge decision={decision} size="md" showTag={true} />
+                    <DecisionBadge decision={decision} size="md" />
                   </div>
 
                   {demo ? (
