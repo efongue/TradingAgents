@@ -4,13 +4,16 @@ import {
   AlertTriangle,
   ArrowUpRight,
   BarChart3,
+  Bookmark,
   CheckCircle2,
   ExternalLink,
   LoaderCircle,
   Play,
   RefreshCw,
+  Scale,
   ScanSearch,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import { api } from "./api.js";
 import "./scanner.css";
@@ -118,7 +121,7 @@ function ScanProgress({ job }) {
   );
 }
 
-function RankingTable({ candidates, final = false, onOpenAnalysis }) {
+function RankingTable({ candidates, final = false, onOpenAnalysis, onAddToWatchlist }) {
   if (!candidates?.length) return null;
   return (
     <div className="scanner-table-wrap">
@@ -132,7 +135,7 @@ function RankingTable({ candidates, final = false, onOpenAnalysis }) {
             <th>20 jours</th>
             <th>60 jours</th>
             <th>Volatilité</th>
-            {final ? <th aria-label="Rapport" /> : null}
+            <th>Actions</th>
           </tr>
         </thead>
         <motion.tbody
@@ -172,20 +175,31 @@ function RankingTable({ candidates, final = false, onOpenAnalysis }) {
               <td data-label="20 jours" className={(candidate.momentum_20d || 0) >= 0 ? "metric-up" : "metric-down"}>{formatPercent(candidate.momentum_20d)}</td>
               <td data-label="60 jours" className={(candidate.momentum_60d || 0) >= 0 ? "metric-up" : "metric-down"}>{formatPercent(candidate.momentum_60d)}</td>
               <td data-label="Volatilité">{formatPercent(candidate.volatility)}</td>
-              {final ? (
-                <td className="scanner-report-cell">
-                  <motion.button
-                    type="button"
-                    className="scanner-report-button"
-                    onClick={() => onOpenAnalysis(candidate.analysis_job_id)}
-                    disabled={!candidate.analysis_job_id}
-                    whileHover={{ scale: 1.04 }}
-                    whileTap={{ scale: 0.96 }}
-                  >
-                    <ExternalLink size={15} /> Voir l’analyse
-                  </motion.button>
-                </td>
-              ) : null}
+              <td className="scanner-report-cell">
+                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  {final && candidate.analysis_job_id ? (
+                    <motion.button
+                      type="button"
+                      className="scanner-report-button"
+                      onClick={() => onOpenAnalysis(candidate.analysis_job_id)}
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
+                    >
+                      <ExternalLink size={14} /> Voir
+                    </motion.button>
+                  ) : null}
+                  {onAddToWatchlist ? (
+                    <button
+                      type="button"
+                      className="chip-button"
+                      onClick={() => onAddToWatchlist(candidate.symbol)}
+                      title="Ajouter à la Watchlist"
+                    >
+                      <Bookmark size={13} /> Watchlist
+                    </button>
+                  ) : null}
+                </div>
+              </td>
             </motion.tr>
           ))}
         </motion.tbody>
@@ -194,7 +208,7 @@ function RankingTable({ candidates, final = false, onOpenAnalysis }) {
   );
 }
 
-export default function ScannerPage({ online, job, setJob, onOpenAnalysis }) {
+export default function ScannerPage({ online, job, setJob, onOpenAnalysis, onAddToWatchlist, onCompareTickers }) {
   const [catalog, setCatalog] = useState([]);
   const [form, setForm] = useState(INITIAL_SCANNER_FORM);
   const [error, setError] = useState("");
@@ -334,8 +348,17 @@ export default function ScannerPage({ online, job, setJob, onOpenAnalysis }) {
                 <CheckCircle2 size={21} />
                 <div><h2>Classement TradingAgents</h2><p>45 % préfiltre quantitatif · 55 % décision des agents</p></div>
               </div>
+              {onCompareTickers && job.ranking.length >= 2 ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => onCompareTickers(job.ranking.slice(0, 3).map((c) => c.symbol))}
+                >
+                  <Scale size={16} /> Comparer le Top {Math.min(3, job.ranking.length)}
+                </button>
+              ) : null}
             </div>
-            <RankingTable candidates={job.ranking} final onOpenAnalysis={onOpenAnalysis} />
+            <RankingTable candidates={job.ranking} final onOpenAnalysis={onOpenAnalysis} onAddToWatchlist={onAddToWatchlist} />
           </motion.section>
         ) : null}
       </AnimatePresence>
@@ -353,8 +376,17 @@ export default function ScannerPage({ online, job, setJob, onOpenAnalysis }) {
                 <BarChart3 size={21} />
                 <div><h2>Préfiltrage de l’univers</h2><p>Momentum 20/60 jours, tendance, liquidité et volatilité</p></div>
               </div>
+              {onCompareTickers && job.candidates.length >= 2 ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => onCompareTickers(job.candidates.slice(0, 3).map((c) => c.symbol))}
+                >
+                  <Scale size={16} /> Comparer le Top {Math.min(3, job.candidates.length)}
+                </button>
+              ) : null}
             </div>
-            <RankingTable candidates={job.candidates} onOpenAnalysis={onOpenAnalysis} />
+            <RankingTable candidates={job.candidates} onOpenAnalysis={onOpenAnalysis} onAddToWatchlist={onAddToWatchlist} />
           </motion.section>
         ) : null}
       </AnimatePresence>

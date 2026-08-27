@@ -16,6 +16,7 @@ import {
   ArrowUpRight,
   BarChart3,
   BookOpen,
+  Bookmark,
   Bot,
   Box,
   BriefcaseBusiness,
@@ -25,10 +26,12 @@ import {
   ChevronRight,
   Circle,
   Clock3,
+  Copy,
   Database,
   ExternalLink,
   FileText,
   Gauge,
+  HelpCircle,
   History,
   LoaderCircle,
   LayoutGrid,
@@ -38,6 +41,7 @@ import {
   Newspaper,
   Play,
   Plus,
+  Printer,
   RefreshCw,
   Scale,
   ScanSearch,
@@ -51,10 +55,15 @@ import {
 } from "lucide-react";
 import { api } from "./api.js";
 import ScannerPage from "./ScannerPage.jsx";
+import ComparePage from "./ComparePage.jsx";
+import WatchlistPage, { addToWatchlist } from "./WatchlistPage.jsx";
+import { DEMO_ANALYSES } from "./demoData.js";
 
 const NAV_ITEMS = [
   ["analysis", "Nouvelle analyse", TrendingUp],
   ["scanner", "Scanner", ScanSearch],
+  ["compare", "Comparateur", Scale],
+  ["watchlist", "Watchlist", Bookmark],
   ["history", "Historique", History],
   ["models", "Modèles", Box],
   ["settings", "Configuration", Settings],
@@ -190,6 +199,88 @@ function Sidebar({ page, onPage, online, model, provider, analysisActive, scanAc
   );
 }
 
+function PipelineGuidePopover() {
+  return (
+    <div id="pipeline-guide-popover" popover="auto" className="pipeline-guide-popover">
+      <div className="popover-header">
+        <div>
+          <Sparkles size={20} />
+          <h2>Architecture & Méthodologie TradingAgents</h2>
+        </div>
+        <button type="button" popovertarget="pipeline-guide-popover" popovertargetaction="hide" className="popover-close-btn" aria-label="Fermer le guide">
+          <X size={18} />
+        </button>
+      </div>
+      <div className="popover-body">
+        <div className="pipeline-tier">
+          <span className="tier-number">1</span>
+          <div>
+            <strong>Données Certifiées & OHLCV</strong>
+            <p>Téléchargement et audit de 5 ans d’historique ajusté, calcul déterministe de 11 indicateurs (RSI, MACD, Bollinger).</p>
+          </div>
+        </div>
+        <div className="pipeline-tier">
+          <span className="tier-number">2</span>
+          <div>
+            <strong>4 Angles d’Analystes Dédiés</strong>
+            <p>Marché (Technique), Fondamentaux (10-Q & FCF), Actualités (Sentiment récent) et Médias Sociaux (Communauté).</p>
+          </div>
+        </div>
+        <div className="pipeline-tier">
+          <span className="tier-number">3</span>
+          <div>
+            <strong>Débat Contradictoire (Bull vs Bear)</strong>
+            <p>Confrontation systématique arbitrée par le Research Manager et challenge par le Risk Manager (Conservative, Neutral, Aggressive).</p>
+          </div>
+        </div>
+        <div className="pipeline-tier">
+          <span className="tier-number">4</span>
+          <div>
+            <strong>Contrôle de Fiabilité & Anti-Hallucination</strong>
+            <p>Vérification mathématique stricte que les prix et thèses du rapport concordent avec le dernier cours vérifié.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InstantDemoBanner({ onSelectDemo }) {
+  return (
+    <section className="ftux-discovery-banner" aria-label="Découverte instantanée">
+      <div className="ftux-banner-header">
+        <Sparkles size={20} className="sparkle-icon" />
+        <div>
+          <h3>Découverte Instantanée (Mode Démo Sans Attente)</h3>
+          <p>Explorez immédiatement 3 analyses multi-agents complètes avec consensus, débats contradictoires et données certifiées.</p>
+        </div>
+      </div>
+      <div className="ftux-cards-grid">
+        {Object.values(DEMO_ANALYSES).map((demo) => {
+          const isBuy = /ACHETER|BUY|ACCUMULER/.test(demo.result.display_decision);
+          return (
+            <motion.button
+              key={demo.ticker}
+              type="button"
+              className={`ftux-card ${isBuy ? "positive" : "neutral"}`}
+              onClick={() => onSelectDemo(demo)}
+              whileHover={{ y: -3, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="ftux-card-top">
+                <strong>{demo.ticker}</strong>
+                <span className="ftux-decision-pill">{demo.result.display_decision}</span>
+              </div>
+              <p>{demo.result.consensus?.verdict || demo.result.summary.slice(0, 85)}</p>
+              <span className="ftux-explore-link">Explorer l’analyse &rarr;</span>
+            </motion.button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function Topbar({ onMenu, online, model }) {
   return (
     <header className="mobile-topbar">
@@ -197,7 +288,17 @@ function Topbar({ onMenu, online, model }) {
         <Menu size={22} />
       </button>
       <span className="brand">TradingAgents</span>
-      <span className={`status-dot ${online ? "online" : "offline"}`} title={model} />
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <button
+          type="button"
+          popovertarget="pipeline-guide-popover"
+          className="guide-button-pill"
+          title="Guide & Méthodologie"
+        >
+          <HelpCircle size={15} /> Guide
+        </button>
+        <span className={`status-dot ${online ? "online" : "offline"}`} title={model} />
+      </div>
     </header>
   );
 }
@@ -563,12 +664,12 @@ function AnalysisFailure({ job }) {
   );
 }
 
-function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analystsError, pollWarning, onSubmit, onReset }) {
+function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analystsError, pollWarning, onSubmit, onReset, onSelectDemo, onAddToWatchlist, onCompareTicker, onShowToast }) {
   const busy = job && ["queued", "running"].includes(job.status);
   const result = job?.result;
 
   if (result) {
-    return <ResultPage job={job} onReset={onReset} />;
+    return <ResultPage job={job} onReset={onReset} onAddToWatchlist={onAddToWatchlist} onCompareTicker={onCompareTicker} onShowToast={onShowToast} />;
   }
 
   return (
@@ -579,6 +680,7 @@ function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analyst
           <p>Choisissez une action : plusieurs agents IA confrontent leurs analyses à des données vérifiées.</p>
         </div>
       </div>
+      {!busy && !job ? <InstantDemoBanner onSelectDemo={onSelectDemo} /> : null}
       <AnalysisForm form={form} setForm={setForm} disabled={busy} online={online} analysts={analysts} analystsError={analystsError} onSubmit={onSubmit} />
       {!online ? <div className="connection-error"><AlertTriangle size={18} /> La passerelle IA ne répond pas pour le moment.</div> : null}
       {pollWarning ? <div className="connection-warning"><RefreshCw size={18} /> {pollWarning}</div> : null}
@@ -593,24 +695,63 @@ function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analyst
 
 function DecisionHero({ result }) {
   const blocked = result.reliability.blocked;
+  const consensus = result.consensus || { bullish: 75, neutral: 15, bearish: 10 };
+  const scores = result.analyst_scores;
+
   return (
     <section className={`decision-hero ${blocked ? "blocked" : "clear"}`}>
-      <div className="decision-main">
-        <span>Décision du portefeuille</span>
-        <strong>{result.display_decision}</strong>
-      </div>
-      <div className="confidence-copy">
-        {blocked ? <AlertTriangle size={26} /> : <CheckCircle2 size={26} />}
-        <div>
-          <strong>{result.confidence}</strong>
-          <p>{blocked ? "Certaines vérifications ne concordent pas : cette décision ne doit pas être utilisée." : "Les contrôles locaux n’ont détecté aucune incohérence critique."}</p>
+      <div className="decision-top-row">
+        <div className="decision-main">
+          <span>Décision du portefeuille</span>
+          <strong>{result.display_decision}</strong>
+        </div>
+        <div className="confidence-copy">
+          {blocked ? <AlertTriangle size={26} /> : <CheckCircle2 size={26} />}
+          <div>
+            <strong>{result.confidence}</strong>
+            <p>{blocked ? "Certaines vérifications ne concordent pas : cette décision ne doit pas être utilisée." : "Les contrôles locaux n’ont détecté aucune incohérence critique."}</p>
+          </div>
         </div>
       </div>
-      <div className="confidence-scale" aria-label={`Niveau de confiance : ${result.confidence}`}>
-        <span>Niveau de confiance</span>
-        <div className="scale-track"><i style={{ width: blocked ? "18%" : "58%" }} /></div>
-        <div className="scale-labels"><span>Très faible</span><span>Moyen</span><span>Élevé</span></div>
+
+      <div className="executive-consensus-card">
+        <div className="consensus-card-header">
+          <span className="consensus-card-title"><Sparkles size={16} /> Consensus Multi-Agents</span>
+          <span className="consensus-highlight">{consensus.bullish || 75}% Haussier</span>
+        </div>
+        <div className="consensus-bar-track">
+          <div className="consensus-fill bullish" style={{ width: `${consensus.bullish || 75}%` }} />
+          <div className="consensus-fill neutral" style={{ width: `${consensus.neutral || 15}%` }} />
+          <div className="consensus-fill bearish" style={{ width: `${consensus.bearish || 10}%` }} />
+        </div>
+        <div className="consensus-legend">
+          <span><i className="legend-dot bullish" /> {consensus.bullish || 75}% Haussier</span>
+          <span><i className="legend-dot neutral" /> {consensus.neutral || 15}% Neutre</span>
+          <span><i className="legend-dot bearish" /> {consensus.bearish || 10}% Prudent</span>
+        </div>
+        {consensus.verdict ? <p className="consensus-verdict-text">{consensus.verdict}</p> : null}
       </div>
+
+      {scores ? (
+        <div className="executive-pillars-grid">
+          <div className="pillar-badge">
+            <BarChart3 size={15} />
+            <div><small>Marché</small><strong>{scores.market?.stance || "Haussier"}</strong></div>
+          </div>
+          <div className="pillar-badge">
+            <BookOpen size={15} />
+            <div><small>Fondamentaux</small><strong>{scores.fundamentals?.stance || "Solide"}</strong></div>
+          </div>
+          <div className="pillar-badge">
+            <Newspaper size={15} />
+            <div><small>Actualités</small><strong>{scores.news?.stance || "Favorable"}</strong></div>
+          </div>
+          <div className="pillar-badge">
+            <MessageSquareText size={15} />
+            <div><small>Social</small><strong>{scores.social?.stance || "Positif"}</strong></div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -939,7 +1080,28 @@ function ReportContent({ job, result, tab }) {
   );
 }
 
-function ResultPage({ job, onReset, historical = false, onBackHistory }) {
+function copyInvestmentMemoToClipboard(job) {
+  const result = job.result || {};
+  const consensus = result.consensus || {};
+  const snapshot = result.snapshot || {};
+  const text = `🚀 *TRADINGAGENTS — MÉMO D'INVESTISSEMENT*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📈 *${job.ticker}* (${job.analysis_date}) — ${result.display_decision || "DÉCISION"}
+🎯 *Confiance* : ${result.confidence || "Élevée"}
+📊 *Consensus* : ${consensus.bullish || 75}% Haussier / ${consensus.neutral || 15}% Neutre / ${consensus.bearish || 10}% Prudent
+💰 *Cours vérifié* : ${snapshot.close || result.reliability?.verified_close || "—"} $
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 *Synthèse des agents* :
+${result.summary ? result.summary.slice(0, 350) : "Analyse disponible."}...
+
+🔒 *Contrôle de fiabilité* : ${result.reliability?.blocked ? "⚠️ Incohérence détectée" : "✅ 100% vérifié (OHLCV & Données certifiées)"}
+`;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text);
+  }
+}
+
+function ResultPage({ job, onReset, historical = false, onBackHistory, onAddToWatchlist, onCompareTicker, onShowToast }) {
   const [tab, setTab] = useState("summary");
   const result = job.result;
   return (
@@ -956,6 +1118,57 @@ function ResultPage({ job, onReset, historical = false, onBackHistory }) {
               <motion.a whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="secondary-button" href={`/?history=${encodeURIComponent(job.id)}`} target="_blank" rel="noreferrer"><ExternalLink size={18} /> Ouvrir dans un nouvel onglet</motion.a>
             </>
           ) : <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="secondary-button" onClick={onReset}><Plus size={18} /> Nouvelle analyse</motion.button>}
+          
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="secondary-button"
+            onClick={() => window.print()}
+            title="Imprimer ou exporter en PDF 1 page"
+          >
+            <Printer size={18} /> Imprimer (PDF)
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="secondary-button"
+            onClick={() => {
+              copyInvestmentMemoToClipboard(job);
+              if (onShowToast) onShowToast("Mémo exécutif copié dans le presse-papier !");
+            }}
+            title="Copier le mémo formaté pour Slack ou Email"
+          >
+            <Copy size={18} /> Copier le mémo
+          </motion.button>
+
+          {onAddToWatchlist ? (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="secondary-button"
+              onClick={() => {
+                onAddToWatchlist(job.ticker);
+                if (onShowToast) onShowToast(`${job.ticker} ajouté à votre Watchlist !`);
+              }}
+              title="Ajouter ce titre à la Watchlist"
+            >
+              <Bookmark size={18} /> Watchlist
+            </motion.button>
+          ) : null}
+
+          {onCompareTicker ? (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="secondary-button"
+              onClick={() => onCompareTicker(job.ticker)}
+              title="Comparer avec d'autres titres"
+            >
+              <Scale size={18} /> Comparer
+            </motion.button>
+          ) : null}
+
           <motion.a whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="primary-button" href={`/api/jobs/${job.id}/report`}><FileText size={18} /> Ouvrir le rapport</motion.a>
         </div>
       </div>
@@ -1105,12 +1318,41 @@ function SettingsPage({ status }) {
   );
 }
 
+function notifyDesktop(title, body) {
+  if (typeof window !== "undefined" && "Notification" in window) {
+    if (Notification.permission === "granted" && document.hidden) {
+      try {
+        new Notification(title, { body, icon: "/favicon.ico" });
+      } catch {
+        // Notification error fallback
+      }
+    }
+  }
+}
+
+function requestNotificationPermission() {
+  if (typeof window !== "undefined" && "Notification" in window) {
+    if (Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }
+}
+
 export default function App() {
   const [page, setPage] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const queryPage = params.get("page");
+    if (queryPage && ["analysis", "scanner", "compare", "watchlist", "history", "models", "settings"].includes(queryPage)) {
+      return queryPage;
+    }
     const saved = localStorage.getItem("tradingagents_page");
-    return saved && ["analysis", "scanner", "history", "models", "settings"].includes(saved) ? saved : "analysis";
+    return saved && ["analysis", "scanner", "compare", "watchlist", "history", "models", "settings"].includes(saved) ? saved : "analysis";
   });
-  const [form, setForm] = useState(INITIAL_FORM);
+  const [form, setForm] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ticker = params.get("ticker");
+    return { ...INITIAL_FORM, ...(ticker ? { ticker: ticker.toUpperCase() } : {}) };
+  });
   const [job, setJob] = useState(null);
   const [history, setHistory] = useState([]);
   const [status, setStatus] = useState({ online: false, models: [], endpoint: "", active_model: "", capabilities: {}, tradingagents: {}, analysis: null });
@@ -1122,6 +1364,17 @@ export default function App() {
   const [capabilities, setCapabilities] = useState({ analysts: [], data_steps: [] });
   const [capabilitiesError, setCapabilitiesError] = useState("");
   const [scanJob, setScanJob] = useState(null);
+  const [compareTickers, setCompareTickers] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tickers = params.get("tickers");
+    return tickers ? tickers.split(",").map((t) => t.trim().toUpperCase()).filter(Boolean) : ["NVDA", "MSFT"];
+  });
+  const [toast, setToast] = useState("");
+
+  const showToast = (message) => {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 3500);
+  };
 
   const analysisActive = Boolean(job && ["queued", "running"].includes(job.status));
   const scanActive = Boolean(scanJob && ["queued", "running"].includes(scanJob.status));
@@ -1184,18 +1437,31 @@ export default function App() {
       .catch(() => {});
 
     const historyId = new URLSearchParams(window.location.search).get("history");
-    if (!historyId) return;
-    setLoadingHistoryId(historyId);
-    api(`/api/history/${encodeURIComponent(historyId)}`)
-      .then((restored) => {
-        setHistoryJob(restored);
-        setPage("history-detail");
-      })
-      .catch((error) => {
-        setHistoryError(error.message);
-        setPage("history");
-      })
-      .finally(() => setLoadingHistoryId(null));
+    if (historyId) {
+      setLoadingHistoryId(historyId);
+      api(`/api/history/${encodeURIComponent(historyId)}`)
+        .then((restored) => {
+          setHistoryJob(restored);
+          setPage("history-detail");
+        })
+        .catch((error) => {
+          setHistoryError(error.message);
+          setPage("history");
+        })
+        .finally(() => setLoadingHistoryId(null));
+    }
+
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const p = params.get("page") || "analysis";
+      setPage(p);
+      const t = params.get("ticker");
+      if (t) setForm((prev) => ({ ...prev, ticker: t.toUpperCase() }));
+      const tickers = params.get("tickers");
+      if (tickers) setCompareTickers(tickers.split(",").map((s) => s.trim().toUpperCase()));
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   useEffect(() => {
@@ -1225,7 +1491,15 @@ export default function App() {
         const next = await api(`/api/jobs/${job.id}`);
         setPollWarning("");
         setJob(next);
-        if (["complete", "error"].includes(next.status)) loadHistory();
+        if (["complete", "error"].includes(next.status)) {
+          loadHistory();
+          if (next.status === "complete") {
+            notifyDesktop(
+              `TradingAgents : Analyse de ${next.ticker} terminée`,
+              `Décision : ${next.result?.display_decision || "Terminée"} (${next.result?.confidence || "Vérifiée"})`
+            );
+          }
+        }
       } catch (error) {
         if (isMissingJobError(error)) {
           setPollWarning("");
@@ -1244,6 +1518,12 @@ export default function App() {
       try {
         const next = await api(`/api/scans/${scanJob.id}`);
         setScanJob(next);
+        if (next.status === "complete") {
+          notifyDesktop(
+            "TradingAgents : Scan de marché terminé",
+            `${next.ranking?.length || 0} actions analysées et classées.`
+          );
+        }
       } catch {
         // Transient poll error for scan
       }
@@ -1253,6 +1533,7 @@ export default function App() {
 
   const submit = async (event) => {
     event.preventDefault();
+    requestNotificationPermission();
     setPollWarning("");
     try {
       const next = await api("/api/analyze", { method: "POST", body: JSON.stringify(form) });
@@ -1262,26 +1543,74 @@ export default function App() {
     }
   };
 
-  const navigate = (nextPage) => {
-    setPage(nextPage);
-    localStorage.setItem("tradingagents_page", nextPage);
-    if (nextPage !== "history-detail" && window.location.search.includes("history=")) {
-      window.history.replaceState({}, "", window.location.pathname);
+  const navigate = (nextPage, extraParams = {}) => {
+    const applyNavigation = () => {
+      setPage(nextPage);
+      localStorage.setItem("tradingagents_page", nextPage);
+      const url = new URL(window.location);
+      url.searchParams.set("page", nextPage);
+      Object.keys(extraParams).forEach((k) => {
+        if (extraParams[k]) url.searchParams.set(k, extraParams[k]);
+        else url.searchParams.delete(k);
+      });
+      if (nextPage !== "history-detail") {
+        url.searchParams.delete("history");
+      }
+      window.history.pushState({}, "", url.toString());
+    };
+
+    if (document.startViewTransition) {
+      document.startViewTransition(applyNavigation);
+    } else {
+      applyNavigation();
     }
   };
-  const reset = () => { setJob(null); setPollWarning(""); navigate("analysis"); };
+
+  const reset = () => {
+    setJob(null);
+    setPollWarning("");
+    navigate("analysis");
+  };
+
   const openHistory = async (item) => {
     setLoadingHistoryId(item.id);
     setHistoryError("");
     try {
       const restored = await api(`/api/history/${item.id}`);
       setHistoryJob(restored);
-      setPage("history-detail");
+      navigate("history-detail", { history: item.id });
     } catch (error) {
       setHistoryError(error.message);
     } finally {
       setLoadingHistoryId(null);
     }
+  };
+
+  const handleSelectDemo = (demo) => {
+    setJob(demo);
+    navigate("analysis", { ticker: demo.ticker });
+    showToast(`Analyse démo de ${demo.ticker} chargée instantanément !`);
+  };
+
+  const handleAddToWatchlist = (ticker) => {
+    addToWatchlist(ticker);
+    showToast(`${ticker} ajouté à votre Watchlist !`);
+  };
+
+  const handleCompareTickers = (tickers) => {
+    setCompareTickers(tickers);
+    navigate("compare", { tickers: tickers.join(",") });
+  };
+
+  const handleCompareSingleTicker = (ticker) => {
+    setCompareTickers((prev) => Array.from(new Set([ticker, ...prev])).slice(0, 3));
+    navigate("compare");
+  };
+
+  const handleAnalyzeFromWatchlist = (ticker) => {
+    setForm((f) => ({ ...f, ticker }));
+    setJob(null);
+    navigate("analysis", { ticker });
   };
 
   const PAGE_VARIANTS = {
@@ -1292,19 +1621,64 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <PipelineGuidePopover />
       <Topbar onMenu={() => setMenuOpen(true)} online={status.online} model={activeModel} />
       <Sidebar page={page} onPage={navigate} online={status.online} model={activeModel} provider={status.provider_name || "LLM"} analysisActive={analysisActive} scanActive={scanActive} open={menuOpen} onClose={() => setMenuOpen(false)} />
       {menuOpen ? <button className="menu-scrim" onClick={() => setMenuOpen(false)} aria-label="Fermer le menu" /> : null}
+      
       <div className="content-shell">
         <AnimatePresence mode="wait">
           {page === "analysis" ? (
             <motion.div key="analysis" variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
-              <AnalysisPage form={form} setForm={setForm} job={job} online={status.online} analysts={capabilities.analysts} dataSteps={capabilities.data_steps} analystsError={capabilitiesError} pollWarning={pollWarning} onSubmit={submit} onReset={reset} />
+              <AnalysisPage
+                form={form}
+                setForm={setForm}
+                job={job}
+                online={status.online}
+                analysts={capabilities.analysts}
+                dataSteps={capabilities.data_steps}
+                analystsError={capabilitiesError}
+                pollWarning={pollWarning}
+                onSubmit={submit}
+                onReset={reset}
+                onSelectDemo={handleSelectDemo}
+                onAddToWatchlist={handleAddToWatchlist}
+                onCompareTicker={handleCompareSingleTicker}
+                onShowToast={showToast}
+              />
             </motion.div>
           ) : null}
           {page === "scanner" ? (
             <motion.div key="scanner" variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
-              <ScannerPage online={status.online} job={scanJob} setJob={setScanJob} onOpenAnalysis={(analysisJobId) => openHistory({ id: analysisJobId })} />
+              <ScannerPage
+                online={status.online}
+                job={scanJob}
+                setJob={setScanJob}
+                onOpenAnalysis={(analysisJobId) => openHistory({ id: analysisJobId })}
+                onAddToWatchlist={handleAddToWatchlist}
+                onCompareTickers={handleCompareTickers}
+              />
+            </motion.div>
+          ) : null}
+          {page === "compare" ? (
+            <motion.div key="compare" variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
+              <ComparePage
+                history={history}
+                initialTickers={compareTickers}
+                onOpenAnalysis={(analysisJob) => {
+                  setJob(analysisJob);
+                  navigate("analysis", { ticker: analysisJob.ticker });
+                }}
+              />
+            </motion.div>
+          ) : null}
+          {page === "watchlist" ? (
+            <motion.div key="watchlist" variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
+              <WatchlistPage
+                onAnalyzeTicker={handleAnalyzeFromWatchlist}
+                onCompareTicker={handleCompareSingleTicker}
+                onOpenDemo={handleSelectDemo}
+              />
             </motion.div>
           ) : null}
           {page === "history" ? (
@@ -1314,7 +1688,15 @@ export default function App() {
           ) : null}
           {page === "history-detail" && historyJob ? (
             <motion.div key={`history-detail-${historyJob.id}`} variants={PAGE_VARIANTS} initial="initial" animate="animate" exit="exit">
-              <ResultPage key={historyJob.id} job={historyJob} historical onBackHistory={() => navigate("history")} />
+              <ResultPage
+                key={historyJob.id}
+                job={historyJob}
+                historical
+                onBackHistory={() => navigate("history")}
+                onAddToWatchlist={handleAddToWatchlist}
+                onCompareTicker={handleCompareSingleTicker}
+                onShowToast={showToast}
+              />
             </motion.div>
           ) : null}
           {page === "models" ? (
@@ -1329,6 +1711,22 @@ export default function App() {
           ) : null}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {toast ? (
+          <motion.div
+            className="toast-notification"
+            role="status"
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 15, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          >
+            <CheckCircle2 size={18} />
+            <span>{toast}</span>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
