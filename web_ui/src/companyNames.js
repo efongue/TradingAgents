@@ -1961,26 +1961,26 @@ export function searchStocks(query, limit = 8) {
   const results = [];
   const seenTickers = new Set();
 
-  const add = (ticker, data, aliasNote = null) => {
+  const add = (ticker, data) => {
     if (!seenTickers.has(ticker)) {
       seenTickers.add(ticker);
       results.push({
         ticker,
         name: data.name,
         short: data.short,
-        sector: aliasNote ? `${aliasNote} · ${data.sector}` : data.sector,
+        sector: data.sector,
         exchange: data.exchange || "Marché",
         flag: data.flag || "🌐",
       });
     }
   };
 
-  // 1. Correspondance exacte ou partielle avec un alias Trade Republic (ex: "SYP" -> SNPS)
+  // 1. Correspondance avec un alias de courtier européen (ex: "SYP" -> SNPS, "APC" -> AAPL)
   for (const [trCode, canonical] of Object.entries(TRADE_REPUBLIC_ALIASES)) {
     if (trCode === q || trCode.startsWith(q)) {
       const data = COMPANY_NAMES[canonical];
       if (data) {
-        add(canonical, data, `Code Trade Republic : ${trCode}`);
+        add(canonical, data);
         if (results.length >= limit) return results;
       }
     }
