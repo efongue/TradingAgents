@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { DEMO_ANALYSES } from "./demoData.js";
+import { getCompanyName } from "./companyNames.js";
 
 const DEFAULT_WATCHLIST = [
   { symbol: "NVDA", added_at: "2026-08-27", last_decision: "ACHETER FORT", note: "Leader calcul accéléré et datacenters" },
@@ -151,14 +152,21 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
 
         <div className="watchlist-quick-chips">
           <span>Suggestions :</span>
-          {["AMZN", "GOOGL", "META", "TSLA", "NFLX", "AMD"].map((sym) => (
+          {[
+            { ticker: "AMZN", label: "AMZN · Amazon" },
+            { ticker: "GOOGL", label: "GOOGL · Alphabet" },
+            { ticker: "META", label: "META · Meta" },
+            { ticker: "TSLA", label: "TSLA · Tesla" },
+            { ticker: "NFLX", label: "NFLX · Netflix" },
+            { ticker: "AMD", label: "AMD · AMD" },
+          ].map((item) => (
             <button
-              key={sym}
+              key={item.ticker}
               type="button"
               className="chip-button"
-              onClick={() => handleQuickAdd(sym)}
+              onClick={() => handleQuickAdd(item.ticker)}
             >
-              + {sym}
+              + {item.label}
             </button>
           ))}
         </div>
@@ -214,7 +222,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
           <table className="watchlist-table">
             <thead>
               <tr>
-                <th>Symbole</th>
+                <th>Symbole / Entreprise</th>
                 <th>Dernière Décision</th>
                 <th>Consensus IA</th>
                 <th>Thèse / Note</th>
@@ -236,6 +244,11 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                     <td>
                       <div className="watchlist-table-symbol">
                         <strong>{item.symbol}</strong>
+                        {getCompanyName(item.symbol, true) ? (
+                          <small className="table-company-sub" style={{ color: "var(--muted)", fontSize: "11px", marginLeft: "6px", fontWeight: "500" }}>
+                            {getCompanyName(item.symbol, true)}
+                          </small>
+                        ) : null}
                         {demo ? <span className="demo-badge">Certifié</span> : null}
                       </div>
                     </td>
@@ -333,6 +346,11 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                     <div>
                       <div className="watchlist-symbol-row">
                         <h2>{item.symbol}</h2>
+                        {getCompanyName(item.symbol) ? (
+                          <span className="watchlist-company-sub" style={{ fontSize: "12px", color: "var(--muted)", fontWeight: "500" }}>
+                            {getCompanyName(item.symbol)}
+                          </span>
+                        ) : null}
                         {demo ? <span className="demo-badge">Certifié</span> : null}
                       </div>
                       <span className="watchlist-added-date">Ajouté le {item.added_at}</span>

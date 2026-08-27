@@ -60,6 +60,7 @@ import ScannerPage from "./ScannerPage.jsx";
 import ComparePage from "./ComparePage.jsx";
 import WatchlistPage, { addToWatchlist } from "./WatchlistPage.jsx";
 import { DEMO_ANALYSES } from "./demoData.js";
+import { getCompanyName } from "./companyNames.js";
 
 const NAV_ITEMS = [
   ["analysis", "Nouvelle analyse", TrendingUp],
@@ -270,7 +271,12 @@ function InstantDemoBanner({ onSelectDemo }) {
               whileTap={{ scale: 0.98 }}
             >
               <div className="ftux-card-top">
-                <strong>{demo.ticker}</strong>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <strong>{demo.ticker}</strong>
+                  <span className="ftux-company-name" style={{ fontSize: "11px", color: "var(--muted)", fontWeight: "550" }}>
+                    {getCompanyName(demo.ticker)}
+                  </span>
+                </div>
                 <span className="ftux-decision-pill">{demo.result.display_decision}</span>
               </div>
               <p>{demo.result.consensus?.verdict || demo.result.summary.slice(0, 85)}</p>
@@ -344,7 +350,14 @@ function AnalysisForm({ form, setForm, disabled, online, analysts, analystsError
     });
   };
 
-  const PRESETS = ["NVDA", "MSFT", "AAPL", "AMZN", "TSLA", "GOOGL"];
+  const PRESETS = [
+    { ticker: "NVDA", label: "NVDA · NVIDIA" },
+    { ticker: "MSFT", label: "MSFT · Microsoft" },
+    { ticker: "AAPL", label: "AAPL · Apple" },
+    { ticker: "AMZN", label: "AMZN · Amazon" },
+    { ticker: "TSLA", label: "TSLA · Tesla" },
+    { ticker: "GOOGL", label: "GOOGL · Alphabet" },
+  ];
   const depthLabels = { 1: "Rapide", 2: "Moyenne", 3: "Approfondie" };
 
   return (
@@ -376,17 +389,17 @@ function AnalysisForm({ form, setForm, disabled, online, analysts, analystsError
         <div className="launcher-footer">
           <div className="quick-preset-chips" aria-label="Suggestions rapides de titres">
             <span>Populaires :</span>
-            {PRESETS.map((symbol) => (
+            {PRESETS.map((preset) => (
               <motion.button
-                key={symbol}
+                key={preset.ticker}
                 type="button"
                 className="chip-button"
                 disabled={disabled}
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
-                onClick={() => setForm((prev) => ({ ...prev, ticker: symbol }))}
+                onClick={() => setForm((prev) => ({ ...prev, ticker: preset.ticker }))}
               >
-                {symbol}
+                {preset.label}
               </motion.button>
             ))}
           </div>
@@ -903,7 +916,9 @@ function FinancialBento({ job, result }) {
       <motion.article className="bento-card bento-hero" variants={itemVariants} whileHover={{ y: -2 }}>
         <div className="bento-hero-copy">
           <span className="bento-label">Vue financière · {job.analysis_date}</span>
-          <strong className="bento-ticker">{job.ticker}</strong>
+          <strong className="bento-ticker">
+            {job.ticker} {getCompanyName(job.ticker) ? `· ${getCompanyName(job.ticker)}` : ""}
+          </strong>
           <h2>{decision}</h2>
           <p>{thesis}</p>
         </div>
@@ -1189,7 +1204,11 @@ function ResultPage({ job, onReset, historical = false, onBackHistory, onAddToWa
     <main className="page result-page">
       <div className="page-heading result-heading">
         <div>
-          <h1>{historical ? `Analyse historique — ${job.ticker}` : `Analyse de ${job.ticker}`}</h1>
+          <h1>
+            {job.ticker}
+            {getCompanyName(job.ticker) ? ` · ${getCompanyName(job.ticker)}` : ""}
+            {historical ? " (Historique)" : ""}
+          </h1>
           <p>{historical ? "Analyse enregistrée, disponible en consultation uniquement" : `Analyse du ${job.analysis_date} · ${job.model}`}{historical ? ` · Réalisée le ${job.analysis_date}` : ""}</p>
         </div>
         <div className="heading-actions">
@@ -1472,6 +1491,11 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
                 >
                   <div className="history-ticker-cell">
                     <strong className="ticker-badge">{item.ticker}</strong>
+                    {getCompanyName(item.ticker, true) ? (
+                      <small className="company-subname" style={{ color: "var(--muted)", fontSize: "11px", marginLeft: "6px", fontWeight: "500" }}>
+                        {getCompanyName(item.ticker, true)}
+                      </small>
+                    ) : null}
                   </div>
 
                   <div className="history-date-cell">

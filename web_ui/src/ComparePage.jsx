@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { DEMO_ANALYSES } from "./demoData.js";
+import { getCompanyName } from "./companyNames.js";
 
 function decisionTone(decision) {
   const normalized = String(decision || "").toUpperCase();
@@ -106,6 +107,11 @@ export default function ComparePage({ history = [], initialTickers = ["NVDA", "M
               exit={{ scale: 0.8, opacity: 0 }}
             >
               <strong>{ticker}</strong>
+              {getCompanyName(ticker, true) ? (
+                <small style={{ color: "var(--muted)", fontSize: "11px", marginLeft: "4px" }}>
+                  {getCompanyName(ticker, true)}
+                </small>
+              ) : null}
               <button
                 type="button"
                 onClick={() => removeTicker(ticker)}
@@ -146,7 +152,7 @@ export default function ComparePage({ history = [], initialTickers = ["NVDA", "M
                   className="chip-button"
                   onClick={() => addTicker(symbol)}
                 >
-                  + {symbol}
+                  + {symbol} {getCompanyName(symbol, true) ? `· ${getCompanyName(symbol, true)}` : ""}
                 </button>
               ))}
             </div>
@@ -184,6 +190,11 @@ export default function ComparePage({ history = [], initialTickers = ["NVDA", "M
                   <div>
                     <span className="compare-badge">{job.is_demo ? "DÉMO INSTANTANÉE" : "ANALYSE RÉELLE"}</span>
                     <h2>{job.ticker}</h2>
+                    {getCompanyName(job.ticker) ? (
+                      <span className="compare-company-name" style={{ fontSize: "12px", color: "var(--muted)", fontWeight: "500", display: "block", marginBottom: "4px" }}>
+                        {getCompanyName(job.ticker)}
+                      </span>
+                    ) : null}
                     <span className="compare-price">{formatNumber(snapshot.close || result.reliability?.verified_close)} $</span>
                   </div>
                   <div className={`compare-decision-pill ${tone}`}>

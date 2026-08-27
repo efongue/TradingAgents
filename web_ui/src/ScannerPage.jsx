@@ -16,6 +16,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { api } from "./api.js";
+import { getCompanyName } from "./companyNames.js";
 import "./scanner.css";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -158,8 +159,17 @@ function RankingTable({ candidates, final = false, onOpenAnalysis, onAddToWatchl
             >
               <td data-label="Rang">{final ? candidate.final_rank || "—" : candidate.prefilter_rank}</td>
               <td data-label="Action">
-                <strong>{candidate.symbol}</strong>
-                <small>{formatNumber(candidate.latest_close, 2)} · {candidate.latest_date}</small>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+                    <strong>{candidate.symbol}</strong>
+                    {getCompanyName(candidate.symbol, true) || candidate.company_name ? (
+                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: "500" }}>
+                        {getCompanyName(candidate.symbol, true) || candidate.company_name}
+                      </span>
+                    ) : null}
+                  </div>
+                  <small>{formatNumber(candidate.latest_close, 2)} · {candidate.latest_date}</small>
+                </div>
               </td>
               <td data-label={final ? "Décision" : "État"}>
                 {final ? (
