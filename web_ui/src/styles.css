@@ -221,10 +221,105 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   line-height: 1.5;
 }
 
-.analysis-form-wrap { margin-bottom: 24px; }
+/* ==========================================================================
+   Hero Launcher Card (Redesigned)
+   ========================================================================== */
+.analysis-launcher-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  background: rgba(9, 14, 21, 0.85);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--inner-highlight), 0 12px 36px rgba(0, 0, 0, 0.35);
+  margin-bottom: 24px;
+}
+.analysis-launcher-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.launcher-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.launcher-search-icon {
+  position: absolute;
+  left: 16px;
+  color: var(--mint);
+  pointer-events: none;
+}
+.launcher-input-group input {
+  flex: 1;
+  height: 52px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 0 16px 0 46px;
+  background: #060a0f;
+  color: var(--text);
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  transition: all 160ms ease;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.launcher-input-group input:focus {
+  border-color: var(--mint);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.launcher-submit-btn {
+  height: 52px;
+  padding: 0 24px;
+  font-size: 14px;
+  min-width: 190px;
+}
+.launcher-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.advanced-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.025);
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.advanced-toggle-button:hover {
+  border-color: var(--mint);
+  color: var(--text);
+  background: rgba(45, 212, 191, 0.05);
+}
+.advanced-options-panel {
+  overflow: hidden;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 18px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.advanced-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.analysis-form-wrap { display: grid; gap: 14px; }
 .analysis-form {
   display: grid;
-  grid-template-columns: 160px 170px 150px minmax(430px, 1fr) auto;
+  grid-template-columns: 1.15fr 1.05fr 0.95fr 2.4fr auto;
   gap: 14px;
   align-items: end;
   padding: 20px 22px;

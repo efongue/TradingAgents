@@ -329,6 +329,8 @@ function AnalystToggle({ id, label, description, Icon, selected, disabled, onTog
 }
 
 function AnalysisForm({ form, setForm, disabled, online, analysts, analystsError, onSubmit }) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   const toggleAnalyst = (id) => {
     setForm((current) => {
       const exists = current.analysts.includes(id);
@@ -343,92 +345,129 @@ function AnalysisForm({ form, setForm, disabled, online, analysts, analystsError
   };
 
   const PRESETS = ["NVDA", "MSFT", "AAPL", "AMZN", "TSLA", "GOOGL"];
+  const depthLabels = { 1: "Rapide", 2: "Moyenne", 3: "Approfondie" };
 
   return (
-    <div className="analysis-form-wrap">
-      <form className="analysis-form" onSubmit={onSubmit}>
-        <label className="field symbol-field">
-          <span>Symbole</span>
+    <div className="analysis-launcher-card">
+      <form className="analysis-launcher-form" onSubmit={onSubmit}>
+        <div className="launcher-input-group">
+          <Search size={19} className="launcher-search-icon" />
           <input
             value={form.ticker}
             onChange={(event) => setForm({ ...form, ticker: event.target.value.toUpperCase() })}
             pattern="[A-Za-z0-9.\-^=]{1,20}"
             required
             disabled={disabled}
+            placeholder="Entrez un symbole boursier (ex: NVDA, TSLA, MSFT)..."
             aria-label="Symbole boursier"
           />
-        </label>
-        <label className="field date-field">
-          <span>Date d’analyse</span>
-          <input
-            type="date"
-            value={form.date}
-            max={new Date().toISOString().slice(0, 10)}
-            onChange={(event) => setForm({ ...form, date: event.target.value })}
-            required
-            disabled={disabled}
-          />
-        </label>
-        <label className="field depth-field">
-          <span>Profondeur</span>
-          <select
-            value={form.depth}
-            onChange={(event) => setForm({ ...form, depth: Number(event.target.value) })}
-            disabled={disabled}
-          >
-            <option value="1">Rapide</option>
-            <option value="2">Moyenne</option>
-            <option value="3">Approfondie</option>
-          </select>
-        </label>
-        <fieldset className="analyst-field" disabled={disabled || analysts.length === 0}>
-          <legend>Analystes</legend>
-          <p className="analyst-field-copy">Choisissez les angles utilisés pour construire l’analyse.</p>
-          <div className="analyst-options">
-            {analysts.length ? analysts.map((analyst) => {
-              const Icon = ANALYST_ICONS[analyst.id] || Users;
-              return (
-                <AnalystToggle
-                  key={analyst.id}
-                  id={analyst.id}
-                  label={analyst.name}
-                  description={analyst.description}
-                  Icon={Icon}
-                  selected={form.analysts.includes(analyst.id)}
-                  disabled={disabled}
-                  onToggle={toggleAnalyst}
-                />
-              );
-            }) : <span className="analyst-options-status">{analystsError || "Chargement des analystes…"}</span>}
-          </div>
-        </fieldset>
-        <motion.button
-          className="primary-button launch-button"
-          type="submit"
-          disabled={disabled || !online || analysts.length === 0 || form.analysts.length === 0}
-          whileHover={disabled || !online ? {} : { scale: 1.02 }}
-          whileTap={disabled || !online ? {} : { scale: 0.98 }}
-        >
-          {disabled ? <LoaderCircle className="spin" size={18} /> : <Play size={18} fill="currentColor" />}
-          {disabled ? "Analyse en cours…" : "Analyser cette action"}
-        </motion.button>
-      </form>
-      <div className="quick-preset-chips" aria-label="Suggestions rapides de titres">
-        <span>Suggestions :</span>
-        {PRESETS.map((symbol) => (
           <motion.button
-            key={symbol}
-            type="button"
-            className="chip-button"
-            disabled={disabled}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setForm((prev) => ({ ...prev, ticker: symbol }))}
+            className="primary-button launcher-submit-btn"
+            type="submit"
+            disabled={disabled || !online || analysts.length === 0 || form.analysts.length === 0 || !form.ticker.trim()}
+            whileHover={disabled || !online ? {} : { scale: 1.02 }}
+            whileTap={disabled || !online ? {} : { scale: 0.98 }}
           >
-            {symbol}
+            {disabled ? <LoaderCircle className="spin" size={17} /> : <Play size={17} fill="currentColor" />}
+            {disabled ? "Analyse en cours…" : "Lancer l'analyse"}
           </motion.button>
-        ))}
-      </div>
+        </div>
+
+        <div className="launcher-footer">
+          <div className="quick-preset-chips" aria-label="Suggestions rapides de titres">
+            <span>Populaires :</span>
+            {PRESETS.map((symbol) => (
+              <motion.button
+                key={symbol}
+                type="button"
+                className="chip-button"
+                disabled={disabled}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setForm((prev) => ({ ...prev, ticker: symbol }))}
+              >
+                {symbol}
+              </motion.button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="advanced-toggle-button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            aria-expanded={showAdvanced}
+          >
+            <SlidersHorizontal size={14} />
+            <span>Options d'analyse ({depthLabels[form.depth]} · {form.analysts.length} analystes)</span>
+            <ChevronDown
+              size={14}
+              style={{
+                transform: showAdvanced ? "rotate(180deg)" : "none",
+                transition: "transform 180ms ease",
+              }}
+            />
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {showAdvanced && (
+            <motion.div
+              className="advanced-options-panel"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="advanced-options-grid">
+                <label className="field date-field">
+                  <span>Date de marché</span>
+                  <input
+                    type="date"
+                    value={form.date}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(event) => setForm({ ...form, date: event.target.value })}
+                    required
+                    disabled={disabled}
+                  />
+                </label>
+                <label className="field depth-field">
+                  <span>Profondeur de recherche</span>
+                  <select
+                    value={form.depth}
+                    onChange={(event) => setForm({ ...form, depth: Number(event.target.value) })}
+                    disabled={disabled}
+                  >
+                    <option value="1">Rapide (1 tour)</option>
+                    <option value="2">Moyenne (2 tours)</option>
+                    <option value="3">Approfondie (3 tours)</option>
+                  </select>
+                </label>
+              </div>
+
+              <fieldset className="analyst-field" disabled={disabled || analysts.length === 0}>
+                <legend>Analystes IA déployés</legend>
+                <div className="analyst-options">
+                  {analysts.length ? analysts.map((analyst) => {
+                    const Icon = ANALYST_ICONS[analyst.id] || Users;
+                    return (
+                      <AnalystToggle
+                        key={analyst.id}
+                        id={analyst.id}
+                        label={analyst.name}
+                        description={analyst.description}
+                        Icon={Icon}
+                        selected={form.analysts.includes(analyst.id)}
+                        disabled={disabled}
+                        onToggle={toggleAnalyst}
+                      />
+                    );
+                  }) : <span className="analyst-options-status">{analystsError || "Chargement des analystes…"}</span>}
+                </div>
+              </fieldset>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </form>
     </div>
   );
 }
@@ -706,19 +745,31 @@ function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analyst
       <div className="page-heading">
         <div>
           <h1>Analyser une action</h1>
-          <p>Choisissez une action : plusieurs agents IA confrontent leurs analyses à des données vérifiées.</p>
+          <p>Saisissez un symbole boursier : nos agents IA spécialisés confrontent leurs analyses à des données de marché vérifiées.</p>
         </div>
       </div>
-      {!busy && !job ? <InstantDemoBanner onSelectDemo={onSelectDemo} /> : null}
+
       <AnalysisForm form={form} setForm={setForm} disabled={busy} online={online} analysts={analysts} analystsError={analystsError} onSubmit={onSubmit} />
+
       {!online ? <div className="connection-error"><AlertTriangle size={18} /> La passerelle IA ne répond pas pour le moment.</div> : null}
       {pollWarning ? <div className="connection-warning"><RefreshCw size={18} /> {pollWarning}</div> : null}
       {["error", "interrupted"].includes(job?.status) ? <AnalysisFailure job={job} /> : null}
-      <div className="analysis-grid">
-        <Workflow job={job} defaultDataSteps={dataSteps} connectionUnverified={Boolean(pollWarning)} />
-        <ReliabilityRail job={job} connectionUnverified={Boolean(pollWarning)} />
-      </div>
-      {busy ? <SkeletonLivePreview ticker={form.ticker} /> : null}
+
+      {/* When running: display live pipeline and active verification rail */}
+      {busy ? (
+        <motion.div
+          className="analysis-grid live-running"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <Workflow job={job} defaultDataSteps={dataSteps} connectionUnverified={Boolean(pollWarning)} />
+          <ReliabilityRail job={job} connectionUnverified={Boolean(pollWarning)} />
+        </motion.div>
+      ) : (
+        /* When idle: display 1-click discovery demo banner */
+        <InstantDemoBanner onSelectDemo={onSelectDemo} />
+      )}
     </main>
   );
 }
@@ -958,10 +1009,10 @@ function AnalysisParametersPanel({ job, result }) {
     : Number(model.temperature).toLocaleString("fr-FR");
 
   return (
-    <details className="effective-parameters" open>
+    <details className="effective-parameters">
       <summary>
-        <span><SlidersHorizontal size={20} /><strong>Paramètres effectifs</strong></span>
-        <span className="parameters-summary-copy">Ce qui a réellement configuré cette analyse</span>
+        <span><SlidersHorizontal size={20} /><strong>Journal technique & paramètres du modèle</strong></span>
+        <span className="parameters-summary-copy">Détails d'exécution et budget de tokens</span>
         <ChevronDown className="parameters-chevron" size={19} />
       </summary>
       {parameters.complete === false ? (
@@ -1203,7 +1254,6 @@ function ResultPage({ job, onReset, historical = false, onBackHistory, onAddToWa
         </div>
       </div>
       <DecisionHero result={result} />
-      <AnalysisParametersPanel job={job} result={result} />
       <div className="result-grid">
         <section className="report-panel">
           <div className="tabs" role="tablist" aria-label="Sections du rapport">
@@ -1250,6 +1300,7 @@ function ResultPage({ job, onReset, historical = false, onBackHistory, onAddToWa
         </section>
         <ReliabilityRail result={result} />
       </div>
+      <AnalysisParametersPanel job={job} result={result} />
     </main>
   );
 }
