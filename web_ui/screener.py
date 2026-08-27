@@ -166,6 +166,9 @@ def score_symbol(
     elif dollar_volume > 0:
         signals.append("Liquidité mesurée")
 
+    sparkline_series = close.dropna().tail(20)
+    sparkline = [round(float(v), 2) for v in sparkline_series.tolist()] if not sparkline_series.empty else []
+
     return {
         "symbol": symbol,
         "prefilter_score": score,
@@ -178,6 +181,7 @@ def score_symbol(
         "average_dollar_volume": round(dollar_volume, 2) if dollar_volume else None,
         "score_components": {key: round(value, 1) for key, value in components.items()},
         "signals": signals,
+        "sparkline": sparkline,
     }
 
 

@@ -17,6 +17,7 @@ import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
 import { getDecisionTone, formatDecisionLabel, getDecisionStrength, isPositiveDecision } from "./decisionUtils.js";
 import DecisionBadge from "./DecisionBadge.jsx";
+import Sparkline from "./Sparkline.jsx";
 
 const DEFAULT_WATCHLIST = [
   { symbol: "NVDA", added_at: "2026-08-27", last_decision: "ACHAT FORT", note: "Leader calcul accéléré et datacenters" },
@@ -226,6 +227,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
               <tr>
                 <th>Symbole / Entreprise</th>
                 <th>Dernière Décision</th>
+                <th>Tendance (30 j)</th>
                 <th>Consensus IA</th>
                 <th>Thèse / Note</th>
                 <th>Date d'ajout</th>
@@ -254,6 +256,19 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                     </td>
                     <td>
                       <DecisionBadge decision={decision} size="sm" />
+                    </td>
+                    <td>
+                      {demo?.result?.snapshot?.sparkline ? (
+                        <Sparkline
+                          data={demo.result.snapshot.sparkline}
+                          width={95}
+                          height={24}
+                          tone={tone}
+                          showChange={true}
+                        />
+                      ) : (
+                        <span className="muted-text">—</span>
+                      )}
                     </td>
                     <td>
                       {demo ? (
@@ -355,6 +370,24 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                     </div>
                     <DecisionBadge decision={decision} size="md" />
                   </div>
+
+                  {demo?.result?.snapshot?.sparkline ? (
+                    <div className="watchlist-card-sparkline-row">
+                      <div className="sparkline-trend-info">
+                        <span className="sparkline-trend-label">Tendance 30 jours</span>
+                        {demo.result.snapshot.close ? (
+                          <strong className="sparkline-last-price">{demo.result.snapshot.close.toLocaleString("fr-FR")} $</strong>
+                        ) : null}
+                      </div>
+                      <Sparkline
+                        data={demo.result.snapshot.sparkline}
+                        width={115}
+                        height={28}
+                        tone={tone}
+                        showChange={true}
+                      />
+                    </div>
+                  ) : null}
 
                   {demo ? (
                     <div className="watchlist-card-consensus">

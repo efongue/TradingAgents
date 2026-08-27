@@ -19,6 +19,7 @@ import { api } from "./api.js";
 import { getCompanyName } from "./companyNames.js";
 import { getDecisionTone, formatDecisionLabel, getDecisionStrength } from "./decisionUtils.js";
 import DecisionBadge from "./DecisionBadge.jsx";
+import Sparkline from "./Sparkline.jsx";
 import "./scanner.css";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -127,6 +128,7 @@ function RankingTable({ candidates, final = false, onOpenAnalysis, onAddToWatchl
             <th>Rang</th>
             <th>Action</th>
             {final ? <th>Décision agents</th> : <th>État</th>}
+            <th>Tendance</th>
             <th>{final ? "Score final" : "Score préfiltre"}</th>
             <th>20 jours</th>
             <th>60 jours</th>
@@ -170,6 +172,15 @@ function RankingTable({ candidates, final = false, onOpenAnalysis, onAddToWatchl
                 {final ? (
                   <DecisionBadge decision={candidate.display_decision || candidate.raw_decision} size="sm" />
                 ) : <span className={`scanner-row-status ${candidate.analysis_status}`}>{statusCopy(candidate)}</span>}
+              </td>
+              <td data-label="Tendance">
+                <Sparkline
+                  data={candidate.sparkline}
+                  width={88}
+                  height={22}
+                  showChange={false}
+                  showDots={true}
+                />
               </td>
               <td data-label="Score">
                 <strong className="scanner-score">{formatNumber(final ? candidate.final_score : candidate.prefilter_score)}</strong>

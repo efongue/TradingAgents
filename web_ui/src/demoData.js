@@ -98,6 +98,7 @@ La prime de valorisation est amplement justifiée par la visibilité des revenus
         volume: 48200000,
         market_cap: "3.16 T$",
         pe_ratio: "42.8",
+        sparkline: [110.2, 112.5, 111.8, 114.6, 116.0, 115.4, 118.9, 120.2, 119.5, 122.8, 124.0, 123.4, 125.1, 126.6, 125.9, 127.8, 128.45],
       },
       reliability: {
         verified: true,
@@ -203,6 +204,7 @@ Microsoft combine le profil de croissance d'un acteur cloud de pointe avec la so
         volume: 19400000,
         market_cap: "3.28 T$",
         pe_ratio: "33.4",
+        sparkline: [412.0, 415.5, 414.2, 418.0, 420.5, 419.0, 423.8, 425.2, 424.0, 428.1, 431.4, 430.2, 433.0, 436.5, 438.8, 440.5, 442.20],
       },
       reliability: {
         verified: true,
@@ -272,7 +274,7 @@ Microsoft combine le profil de croissance d'un acteur cloud de pointe avec la so
         news: { score: 76, stance: "Neutre", note: "Surveillance des ventes sur le marché asiatique" },
         social: { score: 84, stance: "Favorable", note: "Fidélité de la marque la plus élevée du secteur grand public" },
       },
-      summary: `### Synthèse Exécutive : Apple Inc. (NASDAQ: AAPL)
+      summary: `### Synthèse Exécututive : Apple Inc. (NASDAQ: AAPL)
 
 Apple bénéficie d'une base installée active de plus de 2,2 milliards d'appareils, garantissant une croissance continue et très rentable de sa division Services. La valorisation actuelle invite toutefois à la neutralité tactique.
 
@@ -307,6 +309,7 @@ Apple bénéficie d'une base installée active de plus de 2,2 milliards d'appare
         volume: 38700000,
         market_cap: "3.44 T$",
         pe_ratio: "31.2",
+        sparkline: [232.5, 231.8, 233.0, 229.4, 228.9, 230.0, 227.8, 226.4, 228.1, 227.5, 229.2, 228.0, 229.9, 227.4, 227.80],
       },
       reliability: {
         verified: true,
