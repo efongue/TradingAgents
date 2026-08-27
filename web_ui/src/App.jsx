@@ -1438,6 +1438,8 @@ function HistoryPage({ history, loadingId, error, onSelect, onDeleteItem }) {
 
       return {
         ticker,
+        items,
+        chronologicalRuns: [...items].reverse(),
         latest,
         previous,
         totalRuns: items.length,
@@ -1723,48 +1725,66 @@ function HistoryPage({ history, loadingId, error, onSelect, onDeleteItem }) {
                             </div>
 
                             <div className="history-evolution-flow">
-                              <div className="history-evolution-step">
-                                <span className="step-time">{group.previous[0].created_at}</span>
-                                <DecisionBadge decision={group.previous[0].display_decision} size="sm" />
-                                {group.previous[0].close ? (
-                                  <span className="step-price">{Number(group.previous[0].close).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} $</span>
-                                ) : null}
-                              </div>
+                              {group.chronologicalRuns.map((step, idx) => {
+                                const isLatest = idx === group.chronologicalRuns.length - 1;
+                                const nextStep = idx < group.chronologicalRuns.length - 1 ? group.chronologicalRuns[idx + 1] : null;
+                                const stepDelta =
+                                  step.close && nextStep?.close
+                                    ? ((Number(nextStep.close) - Number(step.close)) / Number(step.close)) * 100
+                                    : null;
+                                const stepDeltaAmount =
+                                  step.close && nextStep?.close
+                                    ? Number(nextStep.close) - Number(step.close)
+                                    : null;
 
-                              <div className="history-evolution-arrow">
-                                <span className="arrow-sym">➔</span>
-                                {group.priceDelta !== null ? (
-                                  <span className={`evolution-delta ${group.priceDelta >= 0 ? "up" : "down"}`}>
-                                    {group.priceDelta >= 0 ? "+" : ""}{group.priceDelta.toFixed(2)} % ({group.priceDiffAmount >= 0 ? "+" : ""}{group.priceDiffAmount.toFixed(2)} $)
-                                  </span>
-                                ) : null}
-                              </div>
+                                return (
+                                  <React.Fragment key={step.id}>
+                                    <div className={`history-evolution-step ${isLatest ? "latest-step" : ""}`}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                        <span className="step-time">{step.created_at}</span>
+                                        {isLatest ? <span className="step-latest-badge">Dernière version</span> : null}
+                                      </div>
+                                      <DecisionBadge decision={step.display_decision} size="sm" />
+                                      {step.close ? (
+                                        <span className="step-price">{Number(step.close).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} $</span>
+                                      ) : null}
+                                    </div>
 
-                              <div className="history-evolution-step">
-                                <span className="step-time">{group.latest.created_at}</span>
-                                <DecisionBadge decision={group.latest.display_decision} size="sm" />
-                                {group.latest.close ? (
-                                  <span className="step-price">{Number(group.latest.close).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} $</span>
-                                ) : null}
-                              </div>
+                                    {nextStep ? (
+                                      <div className="history-evolution-arrow">
+                                        <span className="arrow-sym">➔</span>
+                                        {stepDelta !== null ? (
+                                          <span className={`evolution-delta ${stepDelta >= 0 ? "up" : "down"}`}>
+                                            {stepDelta >= 0 ? "+" : ""}{stepDelta.toFixed(2)} % ({stepDeltaAmount >= 0 ? "+" : ""}{stepDeltaAmount.toFixed(2)} $)
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
+                                  </React.Fragment>
+                                );
+                              })}
                             </div>
 
-                            {group.latest.summary || group.previous[0]?.summary ? (
-                              <div className="history-evolution-summaries">
-                                {group.latest.summary ? (
-                                  <div className="evolution-summary-box current">
-                                    <span className="summary-title">Synthèse de la dernière analyse ({group.latest.created_at}) :</span>
-                                    <p>{group.latest.summary.replace(/^#+\s+/gm, "").replace(/\*\*/g, "").slice(0, 320)}...</p>
+                            {/* Summaries in natural chronological order (left = earlier, right = latest) */}
+                            <div className="history-evolution-summaries">
+                              {group.chronologicalRuns.map((run, idx) => {
+                                const isLatest = idx === group.chronologicalRuns.length - 1;
+                                if (!run.summary) return null;
+                                return (
+                                  <div
+                                    key={run.id}
+                                    className={`evolution-summary-box ${isLatest ? "current" : "previous"}`}
+                                  >
+                                    <span className="summary-title">
+                                      {isLatest
+                                        ? `Synthèse de la dernière analyse (${run.created_at}) :`
+                                        : `Synthèse de l'analyse antérieure (${run.created_at}) :`}
+                                    </span>
+                                    <p>{run.summary.replace(/^#+\s+/gm, "").replace(/\*\*/g, "").slice(0, 320)}...</p>
                                   </div>
-                                ) : null}
-                                {group.previous[0]?.summary ? (
-                                  <div className="evolution-summary-box previous">
-                                    <span className="summary-title">Synthèse de l'analyse précédente ({group.previous[0].created_at}) :</span>
-                                    <p>{group.previous[0].summary.replace(/^#+\s+/gm, "").replace(/\*\*/g, "").slice(0, 320)}...</p>
-                                  </div>
-                                ) : null}
-                              </div>
-                            ) : null}
+                                );
+                              })}
+                            </div>
                           </div>
 
                           {/* Sub-rows for each previous run */}

@@ -1580,11 +1580,27 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   border-radius: 8px;
   padding: 10px 14px;
   border: 1px solid rgba(255, 255, 255, 0.04);
+  flex-wrap: wrap;
 }
 .history-evolution-step {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.history-evolution-step.latest-step {
+  background: rgba(45, 212, 191, 0.07);
+  border-radius: 6px;
+  padding: 3px 8px;
+  border: 1px solid rgba(45, 212, 191, 0.25);
+}
+.step-latest-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--mint);
+  background: rgba(45, 212, 191, 0.15);
+  padding: 1.5px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.02em;
 }
 .history-evolution-step .step-time {
   font-size: 11px;
@@ -1617,9 +1633,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .history-evolution-summaries {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 12px;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 .evolution-summary-box {
   background: rgba(0, 0, 0, 0.22);
@@ -1631,7 +1647,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: #cbd5e1;
 }
 .evolution-summary-box.current {
-  border-color: rgba(45, 212, 191, 0.2);
+  border-color: rgba(45, 212, 191, 0.25);
+  background: rgba(45, 212, 191, 0.025);
 }
 .evolution-summary-box .summary-title {
   display: block;
