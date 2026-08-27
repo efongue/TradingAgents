@@ -142,9 +142,16 @@ export default function StockSearchInput({
                       <strong className="autocomplete-ticker-tag">{stock.ticker}</strong>
                       <span className="autocomplete-name">{stock.name}</span>
                     </div>
-                    {stock.sector ? (
-                      <span className="autocomplete-sector-tag">{stock.sector}</span>
-                    ) : null}
+                    <div className="autocomplete-meta-col">
+                      {stock.exchange ? (
+                        <span className="autocomplete-market-tag">
+                          {stock.flag ? `${stock.flag} ` : ""}{stock.exchange}
+                        </span>
+                      ) : null}
+                      {stock.sector ? (
+                        <span className="autocomplete-sector-tag">{stock.sector}</span>
+                      ) : null}
+                    </div>
                   </li>
                 );
               })}

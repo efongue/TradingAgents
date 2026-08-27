@@ -1,174 +1,120 @@
 // Dictionnaire et résolveur des noms complets d'entreprises pour les tickers boursiers (US, CAC 40, Europe)
+// Les tickers canoniques utilisent le format Yahoo Finance requis par le moteur de données (.PA pour Paris, .DE pour Xetra, .SW pour Zurich, etc.)
 export const COMPANY_NAMES = {
   // === US MEGA-CAPS & TECH ===
-  NVDA: { name: "NVIDIA Corporation", short: "NVIDIA", sector: "Semi-conducteurs" },
-  MSFT: { name: "Microsoft Corporation", short: "Microsoft", sector: "Logiciels & Cloud" },
-  AAPL: { name: "Apple Inc.", short: "Apple", sector: "Matériel & Services" },
-  AMZN: { name: "Amazon.com Inc.", short: "Amazon", sector: "E-Commerce & Cloud" },
-  GOOGL: { name: "Alphabet Inc. (Google)", short: "Alphabet", sector: "Internet & IA" },
-  GOOG: { name: "Alphabet Inc. (Google)", short: "Alphabet", sector: "Internet & IA" },
-  META: { name: "Meta Platforms Inc.", short: "Meta", sector: "Réseaux Sociaux & IA" },
-  TSLA: { name: "Tesla Inc.", short: "Tesla", sector: "Automobile & Énergie" },
-  NFLX: { name: "Netflix Inc.", short: "Netflix", sector: "Streaming & Médias" },
-  AMD: { name: "Advanced Micro Devices", short: "AMD", sector: "Semi-conducteurs" },
-  INTC: { name: "Intel Corporation", short: "Intel", sector: "Semi-conducteurs" },
-  AVGO: { name: "Broadcom Inc.", short: "Broadcom", sector: "Semi-conducteurs" },
-  QCOM: { name: "Qualcomm Inc.", short: "Qualcomm", sector: "Semi-conducteurs & Télécom" },
-  ARM: { name: "Arm Holdings plc", short: "ARM", sector: "Semi-conducteurs" },
-  PLTR: { name: "Palantir Technologies", short: "Palantir", sector: "Logiciels & Défense" },
-  ORCL: { name: "Oracle Corporation", short: "Oracle", sector: "Logiciels & Base de données" },
-  CRM: { name: "Salesforce Inc.", short: "Salesforce", sector: "Logiciels CRM" },
-  ADBE: { name: "Adobe Inc.", short: "Adobe", sector: "Logiciels Créatifs" },
-  CSCO: { name: "Cisco Systems", short: "Cisco", sector: "Réseaux" },
-  IBM: { name: "IBM Corporation", short: "IBM", sector: "Services & IA" },
-  TXN: { name: "Texas Instruments", short: "Texas Instruments", sector: "Semi-conducteurs" },
-  ASML: { name: "ASML Holding NV", short: "ASML", sector: "Équipements Semi-conducteurs" },
-  TSM: { name: "Taiwan Semiconductor", short: "TSMC", sector: "Fonderie Semi-conducteurs" },
-  BABA: { name: "Alibaba Group", short: "Alibaba", sector: "E-Commerce & Cloud" },
-  UBER: { name: "Uber Technologies", short: "Uber", sector: "Mobilité & Livraison" },
-  COIN: { name: "Coinbase Global", short: "Coinbase", sector: "Crypto & Fintech" },
+  NVDA: { name: "NVIDIA Corporation", short: "NVIDIA", sector: "Semi-conducteurs", exchange: "NASDAQ", flag: "🇺🇸" },
+  MSFT: { name: "Microsoft Corporation", short: "Microsoft", sector: "Logiciels & Cloud", exchange: "NASDAQ", flag: "🇺🇸" },
+  AAPL: { name: "Apple Inc.", short: "Apple", sector: "Matériel & Services", exchange: "NASDAQ", flag: "🇺🇸" },
+  AMZN: { name: "Amazon.com Inc.", short: "Amazon", sector: "E-Commerce & Cloud", exchange: "NASDAQ", flag: "🇺🇸" },
+  GOOGL: { name: "Alphabet Inc. (Google)", short: "Alphabet", sector: "Internet & IA", exchange: "NASDAQ", flag: "🇺🇸" },
+  GOOG: { name: "Alphabet Inc. (Google)", short: "Alphabet", sector: "Internet & IA", exchange: "NASDAQ", flag: "🇺🇸" },
+  META: { name: "Meta Platforms Inc.", short: "Meta", sector: "Réseaux Sociaux & IA", exchange: "NASDAQ", flag: "🇺🇸" },
+  TSLA: { name: "Tesla Inc.", short: "Tesla", sector: "Automobile & Énergie", exchange: "NASDAQ", flag: "🇺🇸" },
+  NFLX: { name: "Netflix Inc.", short: "Netflix", sector: "Streaming & Médias", exchange: "NASDAQ", flag: "🇺🇸" },
+  AMD: { name: "Advanced Micro Devices", short: "AMD", sector: "Semi-conducteurs", exchange: "NASDAQ", flag: "🇺🇸" },
+  INTC: { name: "Intel Corporation", short: "Intel", sector: "Semi-conducteurs", exchange: "NASDAQ", flag: "🇺🇸" },
+  AVGO: { name: "Broadcom Inc.", short: "Broadcom", sector: "Semi-conducteurs", exchange: "NASDAQ", flag: "🇺🇸" },
+  QCOM: { name: "Qualcomm Inc.", short: "Qualcomm", sector: "Semi-conducteurs & Télécom", exchange: "NASDAQ", flag: "🇺🇸" },
+  ARM: { name: "Arm Holdings plc", short: "ARM", sector: "Semi-conducteurs", exchange: "NASDAQ", flag: "🇺🇸" },
+  PLTR: { name: "Palantir Technologies", short: "Palantir", sector: "Logiciels & Défense", exchange: "NYSE", flag: "🇺🇸" },
+  ORCL: { name: "Oracle Corporation", short: "Oracle", sector: "Logiciels & Base de données", exchange: "NYSE", flag: "🇺🇸" },
+  CRM: { name: "Salesforce Inc.", short: "Salesforce", sector: "Logiciels CRM", exchange: "NYSE", flag: "🇺🇸" },
+  ADBE: { name: "Adobe Inc.", short: "Adobe", sector: "Logiciels Créatifs", exchange: "NASDAQ", flag: "🇺🇸" },
+  CSCO: { name: "Cisco Systems", short: "Cisco", sector: "Réseaux", exchange: "NASDAQ", flag: "🇺🇸" },
+  IBM: { name: "IBM Corporation", short: "IBM", sector: "Services & IA", exchange: "NYSE", flag: "🇺🇸" },
+  TXN: { name: "Texas Instruments", short: "Texas Instruments", sector: "Semi-conducteurs", exchange: "NASDAQ", flag: "🇺🇸" },
+  ASML: { name: "ASML Holding NV", short: "ASML", sector: "Équipements Semi-conducteurs", exchange: "NASDAQ", flag: "🇺🇸" },
+  TSM: { name: "Taiwan Semiconductor", short: "TSMC", sector: "Fonderie Semi-conducteurs", exchange: "NYSE", flag: "🇺🇸" },
+  BABA: { name: "Alibaba Group", short: "Alibaba", sector: "E-Commerce & Cloud", exchange: "NYSE", flag: "🇺🇸" },
+  UBER: { name: "Uber Technologies", short: "Uber", sector: "Mobilité & Livraison", exchange: "NYSE", flag: "🇺🇸" },
+  COIN: { name: "Coinbase Global", short: "Coinbase", sector: "Crypto & Fintech", exchange: "NASDAQ", flag: "🇺🇸" },
 
   // === US BLUE CHIPS, SANTÉ, FINANCE, CONSO ===
-  DIS: { name: "The Walt Disney Company", short: "Disney", sector: "Divertissement" },
-  NKE: { name: "Nike Inc.", short: "Nike", sector: "Biens de consommation" },
-  SBUX: { name: "Starbucks Corporation", short: "Starbucks", sector: "Restauration" },
-  KO: { name: "The Coca-Cola Company", short: "Coca-Cola", sector: "Boissons" },
-  PEP: { name: "PepsiCo Inc.", short: "PepsiCo", sector: "Boissons & Snacks" },
-  COST: { name: "Costco Wholesale", short: "Costco", sector: "Grande Distribution" },
-  WMT: { name: "Walmart Inc.", short: "Walmart", sector: "Grande Distribution" },
-  HD: { name: "The Home Depot Inc.", short: "Home Depot", sector: "Bricolage & Équipement" },
-  PG: { name: "Procter & Gamble", short: "P&G", sector: "Biens de consommation" },
-  JNJ: { name: "Johnson & Johnson", short: "J&J", sector: "Santé & Pharma" },
-  LLY: { name: "Eli Lilly and Company", short: "Eli Lilly", sector: "Pharmaceutique" },
-  PFE: { name: "Pfizer Inc.", short: "Pfizer", sector: "Pharmaceutique" },
-  UNH: { name: "UnitedHealth Group", short: "UnitedHealth", sector: "Assurance Santé" },
-  JPM: { name: "JPMorgan Chase & Co.", short: "JPMorgan", sector: "Banque & Finance" },
-  BAC: { name: "Bank of America", short: "Bank of America", sector: "Banque" },
-  MS: { name: "Morgan Stanley", short: "Morgan Stanley", sector: "Banque d'Investissement" },
-  GS: { name: "Goldman Sachs Group", short: "Goldman Sachs", sector: "Banque d'Investissement" },
-  "BRK-B": { name: "Berkshire Hathaway Inc.", short: "Berkshire Hathaway", sector: "Holding & Assurance" },
-  "BRK.B": { name: "Berkshire Hathaway Inc.", short: "Berkshire Hathaway", sector: "Holding & Assurance" },
-  BRKB: { name: "Berkshire Hathaway Inc.", short: "Berkshire Hathaway", sector: "Holding & Assurance" },
-  V: { name: "Visa Inc.", short: "Visa", sector: "Paiements" },
-  MA: { name: "Mastercard Incorporated", short: "Mastercard", sector: "Paiements" },
-  PYPL: { name: "PayPal Holdings", short: "PayPal", sector: "Fintech" },
-  XOM: { name: "Exxon Mobil Corporation", short: "ExxonMobil", sector: "Énergie & Pétrole" },
-  CVX: { name: "Chevron Corporation", short: "Chevron", sector: "Énergie & Pétrole" },
+  DIS: { name: "The Walt Disney Company", short: "Disney", sector: "Divertissement", exchange: "NYSE", flag: "🇺🇸" },
+  NKE: { name: "Nike Inc.", short: "Nike", sector: "Biens de consommation", exchange: "NYSE", flag: "🇺🇸" },
+  SBUX: { name: "Starbucks Corporation", short: "Starbucks", sector: "Restauration", exchange: "NASDAQ", flag: "🇺🇸" },
+  KO: { name: "The Coca-Cola Company", short: "Coca-Cola", sector: "Boissons", exchange: "NYSE", flag: "🇺🇸" },
+  PEP: { name: "PepsiCo Inc.", short: "PepsiCo", sector: "Boissons & Snacks", exchange: "NASDAQ", flag: "🇺🇸" },
+  COST: { name: "Costco Wholesale", short: "Costco", sector: "Grande Distribution", exchange: "NASDAQ", flag: "🇺🇸" },
+  WMT: { name: "Walmart Inc.", short: "Walmart", sector: "Grande Distribution", exchange: "NYSE", flag: "🇺🇸" },
+  HD: { name: "The Home Depot Inc.", short: "Home Depot", sector: "Bricolage & Équipement", exchange: "NYSE", flag: "🇺🇸" },
+  PG: { name: "Procter & Gamble", short: "P&G", sector: "Biens de consommation", exchange: "NYSE", flag: "🇺🇸" },
+  JNJ: { name: "Johnson & Johnson", short: "J&J", sector: "Santé & Pharma", exchange: "NYSE", flag: "🇺🇸" },
+  LLY: { name: "Eli Lilly and Company", short: "Eli Lilly", sector: "Pharmaceutique", exchange: "NYSE", flag: "🇺🇸" },
+  PFE: { name: "Pfizer Inc.", short: "Pfizer", sector: "Pharmaceutique", exchange: "NYSE", flag: "🇺🇸" },
+  UNH: { name: "UnitedHealth Group", short: "UnitedHealth", sector: "Assurance Santé", exchange: "NYSE", flag: "🇺🇸" },
+  JPM: { name: "JPMorgan Chase & Co.", short: "JPMorgan", sector: "Banque & Finance", exchange: "NYSE", flag: "🇺🇸" },
+  BAC: { name: "Bank of America", short: "Bank of America", sector: "Banque", exchange: "NYSE", flag: "🇺🇸" },
+  MS: { name: "Morgan Stanley", short: "Morgan Stanley", sector: "Banque d'Investissement", exchange: "NYSE", flag: "🇺🇸" },
+  GS: { name: "Goldman Sachs Group", short: "Goldman Sachs", sector: "Banque d'Investissement", exchange: "NYSE", flag: "🇺🇸" },
+  "BRK-B": { name: "Berkshire Hathaway Inc.", short: "Berkshire Hathaway", sector: "Holding & Assurance", exchange: "NYSE", flag: "🇺🇸" },
+  V: { name: "Visa Inc.", short: "Visa", sector: "Paiements", exchange: "NYSE", flag: "🇺🇸" },
+  MA: { name: "Mastercard Incorporated", short: "Mastercard", sector: "Paiements", exchange: "NYSE", flag: "🇺🇸" },
+  PYPL: { name: "PayPal Holdings", sector: "Fintech", short: "PayPal", exchange: "NASDAQ", flag: "🇺🇸" },
+  XOM: { name: "Exxon Mobil Corporation", short: "ExxonMobil", sector: "Énergie & Pétrole", exchange: "NYSE", flag: "🇺🇸" },
+  CVX: { name: "Chevron Corporation", short: "Chevron", sector: "Énergie & Pétrole", exchange: "NYSE", flag: "🇺🇸" },
 
   // === CAC 40 & BOURSE DE PARIS (.PA) ===
-  "DSY.PA": { name: "Dassault Systèmes SE", short: "Dassault Systèmes", sector: "Logiciels 3D & PLM" },
-  DSY: { name: "Dassault Systèmes SE", short: "Dassault Systèmes", sector: "Logiciels 3D & PLM" },
-  "MC.PA": { name: "LVMH Moët Hennessy", short: "LVMH", sector: "Luxe" },
-  MC: { name: "LVMH Moët Hennessy", short: "LVMH", sector: "Luxe" },
-  "OR.PA": { name: "L'Oréal S.A.", short: "L'Oréal", sector: "Cosmétiques" },
-  OR: { name: "L'Oréal S.A.", short: "L'Oréal", sector: "Cosmétiques" },
-  "TTE.PA": { name: "TotalEnergies SE", short: "TotalEnergies", sector: "Énergie" },
-  TTE: { name: "TotalEnergies SE", short: "TotalEnergies", sector: "Énergie" },
-  "AIR.PA": { name: "Airbus SE", short: "Airbus", sector: "Aéronautique" },
-  AIR: { name: "Airbus SE", short: "Airbus", sector: "Aéronautique" },
-  "SAN.PA": { name: "Sanofi S.A.", short: "Sanofi", sector: "Pharmaceutique" },
-  SAN: { name: "Sanofi S.A.", short: "Sanofi", sector: "Pharmaceutique" },
-  "SAF.PA": { name: "Safran SE", short: "Safran", sector: "Aéronautique & Défense" },
-  SAF: { name: "Safran SE", short: "Safran", sector: "Aéronautique & Défense" },
-  "SU.PA": { name: "Schneider Electric SE", short: "Schneider Electric", sector: "Équipements Électriques" },
-  SU: { name: "Schneider Electric SE", short: "Schneider Electric", sector: "Équipements Électriques" },
-  "AI.PA": { name: "Air Liquide S.A.", short: "Air Liquide", sector: "Gaz Industriels" },
-  AI: { name: "Air Liquide S.A.", short: "Air Liquide", sector: "Gaz Industriels" },
-  "BNP.PA": { name: "BNP Paribas", short: "BNP Paribas", sector: "Banque" },
-  BNP: { name: "BNP Paribas", short: "BNP Paribas", sector: "Banque" },
-  "EL.PA": { name: "EssilorLuxottica", short: "EssilorLuxottica", sector: "Optique" },
-  EL: { name: "EssilorLuxottica", short: "EssilorLuxottica", sector: "Optique" },
-  "CS.PA": { name: "AXA S.A.", short: "AXA", sector: "Assurance" },
-  CS: { name: "AXA S.A.", short: "AXA", sector: "Assurance" },
-  "DG.PA": { name: "Vinci SA", short: "Vinci", sector: "Construction & Concessions" },
-  DG: { name: "Vinci SA", short: "Vinci", sector: "Construction & Concessions" },
-  "RI.PA": { name: "Pernod Ricard SA", short: "Pernod Ricard", sector: "Vins & Spiritueux" },
-  RI: { name: "Pernod Ricard SA", short: "Pernod Ricard", sector: "Vins & Spiritueux" },
-  "EN.PA": { name: "Bouygues SA", short: "Bouygues", sector: "BTP & Télécoms" },
-  EN: { name: "Bouygues SA", short: "Bouygues", sector: "BTP & Télécoms" },
-  "CAP.PA": { name: "Capgemini SE", short: "Capgemini", sector: "Services IT & Conseil" },
-  CAP: { name: "Capgemini SE", short: "Capgemini", sector: "Services IT & Conseil" },
-  "HO.PA": { name: "Thales S.A.", short: "Thales", sector: "Défense & Aérospatial" },
-  HO: { name: "Thales S.A.", short: "Thales", sector: "Défense & Aérospatial" },
-  "KER.PA": { name: "Kering SA", short: "Kering", sector: "Luxe" },
-  KER: { name: "Kering SA", short: "Kering", sector: "Luxe" },
-  "RMS.PA": { name: "Hermès International", short: "Hermès", sector: "Luxe" },
-  RMS: { name: "Hermès International", short: "Hermès", sector: "Luxe" },
-  "VIE.PA": { name: "Veolia Environnement", short: "Veolia", sector: "Environnement & Eau" },
-  VIE: { name: "Veolia Environnement", short: "Veolia", sector: "Environnement & Eau" },
-  "ORA.PA": { name: "Orange S.A.", short: "Orange", sector: "Télécommunications" },
-  ORA: { name: "Orange S.A.", short: "Orange", sector: "Télécommunications" },
-  "GLE.PA": { name: "Société Générale", short: "Société Générale", sector: "Banque" },
-  GLE: { name: "Société Générale", short: "Société Générale", sector: "Banque" },
-  "ACA.PA": { name: "Crédit Agricole S.A.", short: "Crédit Agricole", sector: "Banque" },
-  ACA: { name: "Crédit Agricole S.A.", short: "Crédit Agricole", sector: "Banque" },
-  "ENGI.PA": { name: "Engie SA", short: "Engie", sector: "Énergie & Gaz" },
-  ENGI: { name: "Engie SA", short: "Engie", sector: "Énergie & Gaz" },
-  "ML.PA": { name: "Michelin", short: "Michelin", sector: "Pneumatiques" },
-  ML: { name: "Michelin", short: "Michelin", sector: "Pneumatiques" },
-  "PUB.PA": { name: "Publicis Groupe", short: "Publicis", sector: "Publicité & Médias" },
-  PUB: { name: "Publicis Groupe", short: "Publicis", sector: "Publicité & Médias" },
-  "SGO.PA": { name: "Saint-Gobain", short: "Saint-Gobain", sector: "Matériaux de construction" },
-  SGO: { name: "Saint-Gobain", short: "Saint-Gobain", sector: "Matériaux de construction" },
-  "STMPA.PA": { name: "STMicroelectronics N.V.", short: "STMicroelectronics", sector: "Semi-conducteurs" },
-  "STM.PA": { name: "STMicroelectronics N.V.", short: "STMicroelectronics", sector: "Semi-conducteurs" },
-  STM: { name: "STMicroelectronics N.V.", short: "STMicroelectronics", sector: "Semi-conducteurs" },
-  "STLAP.PA": { name: "Stellantis N.V.", short: "Stellantis", sector: "Automobile" },
-  STLA: { name: "Stellantis N.V.", short: "Stellantis", sector: "Automobile" },
-  "TEP.PA": { name: "Teleperformance SE", short: "Teleperformance", sector: "Services Clients & IA" },
-  TEP: { name: "Teleperformance SE", short: "Teleperformance", sector: "Services Clients & IA" },
-  "LR.PA": { name: "Legrand SA", short: "Legrand", sector: "Infrastructures Électriques" },
-  LR: { name: "Legrand SA", short: "Legrand", sector: "Infrastructures Électriques" },
-  "EDEN.PA": { name: "Edenred SE", short: "Edenred", sector: "Services Prépayés" },
-  EDEN: { name: "Edenred SE", short: "Edenred", sector: "Services Prépayés" },
-  "URW.PA": { name: "Unibail-Rodamco-Westfield", short: "Unibail-Rodamco", sector: "Immobilier Commercial" },
-  URW: { name: "Unibail-Rodamco-Westfield", short: "Unibail-Rodamco", sector: "Immobilier Commercial" },
-  "SW.PA": { name: "Sodexo S.A.", short: "Sodexo", sector: "Services & Restauration" },
-  SW: { name: "Sodexo S.A.", short: "Sodexo", sector: "Services & Restauration" },
-  "ALO.PA": { name: "Alstom SA", short: "Alstom", sector: "Matériel Ferroviaire" },
-  ALO: { name: "Alstom SA", short: "Alstom", sector: "Matériel Ferroviaire" },
-  "RNO.PA": { name: "Renault Group", short: "Renault", sector: "Automobile" },
-  RNO: { name: "Renault Group", short: "Renault", sector: "Automobile" },
-  "BN.PA": { name: "Danone S.A.", short: "Danone", sector: "Agroalimentaire" },
-  BN: { name: "Danone S.A.", short: "Danone", sector: "Agroalimentaire" },
-  "CA.PA": { name: "Carrefour S.A.", short: "Carrefour", sector: "Grande Distribution" },
-  CA: { name: "Carrefour S.A.", short: "Carrefour", sector: "Grande Distribution" },
-  "VIV.PA": { name: "Vivendi SE", short: "Vivendi", sector: "Médias & Divertissement" },
-  VIV: { name: "Vivendi SE", short: "Vivendi", sector: "Médias & Divertissement" },
-  "WLN.PA": { name: "Worldline SA", short: "Worldline", sector: "Paiements" },
-  WLN: { name: "Worldline SA", short: "Worldline", sector: "Paiements" },
-  "ELIS.PA": { name: "Elis SA", short: "Elis", sector: "Services aux Entreprises" },
-  ELIS: { name: "Elis SA", short: "Elis", sector: "Services aux Entreprises" },
-  "ERF.PA": { name: "Eurofins Scientific", short: "Eurofins", sector: "Bio-analyse & Santé" },
-  ERF: { name: "Eurofins Scientific", short: "Eurofins", sector: "Bio-analyse & Santé" },
-  "BVI.PA": { name: "Bureau Veritas SA", short: "Bureau Veritas", sector: "Certification & Contrôle" },
-  BVI: { name: "Bureau Veritas SA", short: "Bureau Veritas", sector: "Certification & Contrôle" },
-  "GET.PA": { name: "Getlink SE", short: "Getlink (Eurotunnel)", sector: "Transport & Tunnels" },
-  GET: { name: "Getlink SE", short: "Getlink (Eurotunnel)", sector: "Transport & Tunnels" },
-  "FDJ.PA": { name: "La Française des Jeux", short: "FDJ", sector: "Jeux & Loteries" },
-  FDJ: { name: "La Française des Jeux", short: "FDJ", sector: "Jeux & Loteries" },
-  "IPN.PA": { name: "Ipsen SA", short: "Ipsen", sector: "Pharmaceutique" },
-  IPN: { name: "Ipsen SA", short: "Ipsen", sector: "Pharmaceutique" },
+  "DSY.PA": { name: "Dassault Systèmes SE", short: "Dassault Systèmes", sector: "Logiciels 3D & PLM", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "MC.PA": { name: "LVMH Moët Hennessy", short: "LVMH", sector: "Luxe", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "OR.PA": { name: "L'Oréal S.A.", short: "L'Oréal", sector: "Cosmétiques", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "TTE.PA": { name: "TotalEnergies SE", short: "TotalEnergies", sector: "Énergie", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "AIR.PA": { name: "Airbus SE", short: "Airbus", sector: "Aéronautique", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "SAN.PA": { name: "Sanofi S.A.", short: "Sanofi", sector: "Pharmaceutique", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "SAF.PA": { name: "Safran SE", short: "Safran", sector: "Aéronautique & Défense", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "SU.PA": { name: "Schneider Electric SE", short: "Schneider Electric", sector: "Équipements Électriques", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "AI.PA": { name: "Air Liquide S.A.", short: "Air Liquide", sector: "Gaz Industriels", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "BNP.PA": { name: "BNP Paribas", short: "BNP Paribas", sector: "Banque", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "EL.PA": { name: "EssilorLuxottica", short: "EssilorLuxottica", sector: "Optique", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "CS.PA": { name: "AXA S.A.", short: "AXA", sector: "Assurance", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "DG.PA": { name: "Vinci SA", short: "Vinci", sector: "Construction & Concessions", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "RI.PA": { name: "Pernod Ricard SA", short: "Pernod Ricard", sector: "Vins & Spiritueux", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "EN.PA": { name: "Bouygues SA", short: "Bouygues", sector: "BTP & Télécoms", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "CAP.PA": { name: "Capgemini SE", short: "Capgemini", sector: "Services IT & Conseil", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "HO.PA": { name: "Thales S.A.", short: "Thales", sector: "Défense & Aérospatial", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "KER.PA": { name: "Kering SA", short: "Kering", sector: "Luxe", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "RMS.PA": { name: "Hermès International", short: "Hermès", sector: "Luxe", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "VIE.PA": { name: "Veolia Environnement", short: "Veolia", sector: "Environnement & Eau", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "ORA.PA": { name: "Orange S.A.", short: "Orange", sector: "Télécommunications", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "GLE.PA": { name: "Société Générale", short: "Société Générale", sector: "Banque", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "ACA.PA": { name: "Crédit Agricole S.A.", short: "Crédit Agricole", sector: "Banque", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "ENGI.PA": { name: "Engie SA", short: "Engie", sector: "Énergie & Gaz", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "ML.PA": { name: "Michelin", short: "Michelin", sector: "Pneumatiques", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "PUB.PA": { name: "Publicis Groupe", short: "Publicis", sector: "Publicité & Médias", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "SGO.PA": { name: "Saint-Gobain", short: "Saint-Gobain", sector: "Matériaux de construction", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "STMPA.PA": { name: "STMicroelectronics N.V.", short: "STMicroelectronics", sector: "Semi-conducteurs", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "STLA": { name: "Stellantis N.V.", short: "Stellantis", sector: "Automobile", exchange: "NYSE / Euronext", flag: "🇪🇺" },
+  "TEP.PA": { name: "Teleperformance SE", short: "Teleperformance", sector: "Services Clients & IA", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "LR.PA": { name: "Legrand SA", short: "Legrand", sector: "Infrastructures Électriques", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "EDEN.PA": { name: "Edenred SE", short: "Edenred", sector: "Services Prépayés", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "URW.PA": { name: "Unibail-Rodamco-Westfield", short: "Unibail-Rodamco", sector: "Immobilier Commercial", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "SW.PA": { name: "Sodexo S.A.", short: "Sodexo", sector: "Services & Restauration", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "ALO.PA": { name: "Alstom SA", short: "Alstom", sector: "Matériel Ferroviaire", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "RNO.PA": { name: "Renault Group", short: "Renault", sector: "Automobile", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "BN.PA": { name: "Danone S.A.", short: "Danone", sector: "Agroalimentaire", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "CA.PA": { name: "Carrefour S.A.", short: "Carrefour", sector: "Grande Distribution", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "VIV.PA": { name: "Vivendi SE", short: "Vivendi", sector: "Médias & Divertissement", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "WLN.PA": { name: "Worldline SA", short: "Worldline", sector: "Paiements", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "ELIS.PA": { name: "Elis SA", short: "Elis", sector: "Services aux Entreprises", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "ERF.PA": { name: "Eurofins Scientific", short: "Eurofins", sector: "Bio-analyse & Santé", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "BVI.PA": { name: "Bureau Veritas SA", short: "Bureau Veritas", sector: "Certification & Contrôle", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "GET.PA": { name: "Getlink SE", short: "Getlink (Eurotunnel)", sector: "Transport & Tunnels", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "FDJ.PA": { name: "La Française des Jeux", short: "FDJ", sector: "Jeux & Loteries", exchange: "Euronext Paris", flag: "🇫🇷" },
+  "IPN.PA": { name: "Ipsen SA", short: "Ipsen", sector: "Pharmaceutique", exchange: "Euronext Paris", flag: "🇫🇷" },
 
   // === EUROPE (DAX, SMI, AEX) ===
-  "SAP.DE": { name: "SAP SE", short: "SAP", sector: "Logiciels d'entreprise" },
-  SAP: { name: "SAP SE", short: "SAP", sector: "Logiciels d'entreprise" },
-  "SIE.DE": { name: "Siemens AG", short: "Siemens", sector: "Industrie & Tech" },
-  SIE: { name: "Siemens AG", short: "Siemens", sector: "Industrie & Tech" },
-  "ALV.DE": { name: "Allianz SE", short: "Allianz", sector: "Assurance" },
-  ALV: { name: "Allianz SE", short: "Allianz", sector: "Assurance" },
-  "NESN.SW": { name: "Nestlé S.A.", short: "Nestlé", sector: "Agroalimentaire" },
-  NESN: { name: "Nestlé S.A.", short: "Nestlé", sector: "Agroalimentaire" },
-  "ROG.SW": { name: "Roche Holding AG", short: "Roche", sector: "Pharmaceutique" },
-  ROG: { name: "Roche Holding AG", short: "Roche", sector: "Pharmaceutique" },
-  "NOVN.SW": { name: "Novartis AG", short: "Novartis", sector: "Pharmaceutique" },
-  NOVN: { name: "Novartis AG", short: "Novartis", sector: "Pharmaceutique" },
-  "ASML.AS": { name: "ASML Holding NV", short: "ASML", sector: "Équipements Semi-conducteurs" },
+  "SAP.DE": { name: "SAP SE", short: "SAP", sector: "Logiciels d'entreprise", exchange: "XETRA Frankfurt", flag: "🇩🇪" },
+  "SIE.DE": { name: "Siemens AG", short: "Siemens", sector: "Industrie & Tech", exchange: "XETRA Frankfurt", flag: "🇩🇪" },
+  "ALV.DE": { name: "Allianz SE", short: "Allianz", sector: "Assurance", exchange: "XETRA Frankfurt", flag: "🇩🇪" },
+  "NESN.SW": { name: "Nestlé S.A.", short: "Nestlé", sector: "Agroalimentaire", exchange: "SIX Swiss Ex", flag: "🇨🇭" },
+  "ROG.SW": { name: "Roche Holding AG", short: "Roche", sector: "Pharmaceutique", exchange: "SIX Swiss Ex", flag: "🇨🇭" },
+  "NOVN.SW": { name: "Novartis AG", short: "Novartis", sector: "Pharmaceutique", exchange: "SIX Swiss Ex", flag: "🇨🇭" },
+  "ASML.AS": { name: "ASML Holding NV", short: "ASML", sector: "Équipements Semi-conducteurs", exchange: "Euronext Amsterdam", flag: "🇳🇱" },
 };
 
 /**
  * Résout le nom complet ou court d'une entreprise à partir de son symbole boursier.
- * Supporte automatiquement les variantes avec et sans extension de place (ex: DSY.PA -> Dassault Systèmes, DSY -> Dassault Systèmes).
+ * Supporte automatiquement les variantes avec et sans extension de place (ex: DSY -> DSY.PA, HO -> HO.PA, BRK.B -> BRK-B).
  */
 export function getCompanyName(ticker, short = false) {
   if (!ticker) return "";
@@ -177,19 +123,19 @@ export function getCompanyName(ticker, short = false) {
   // 1. Recherche exacte directe
   let info = COMPANY_NAMES[upper];
 
-  // 2. Recherche en retirant le suffixe de place (ex: DSY.PA -> DSY, BRK-B -> BRK)
+  // 2. Recherche en ajoutant le suffixe de place parisien .PA (ex: HO -> HO.PA, DSY -> DSY.PA)
+  if (!info && !upper.includes(".")) {
+    info = COMPANY_NAMES[`${upper}.PA`];
+  }
+
+  // 3. Recherche en retirant le suffixe de place (ex: BRK.B -> BRK-B, STM.PA -> STMPA.PA)
   if (!info && upper.includes(".")) {
     const base = upper.split(".")[0];
-    info = COMPANY_NAMES[base];
+    info = COMPANY_NAMES[base] || COMPANY_NAMES[`${base}-B`];
   }
   if (!info && upper.includes("-")) {
     const base = upper.split("-")[0];
     info = COMPANY_NAMES[base];
-  }
-
-  // 3. Recherche en ajoutant le suffixe de place parisien .PA
-  if (!info && !upper.includes(".")) {
-    info = COMPANY_NAMES[`${upper}.PA`];
   }
 
   if (info) {
@@ -206,13 +152,14 @@ export function getCompanySector(ticker) {
   const upper = String(ticker).trim().toUpperCase();
   const info =
     COMPANY_NAMES[upper] ||
-    (upper.includes(".") ? COMPANY_NAMES[upper.split(".")[0]] : null) ||
-    COMPANY_NAMES[`${upper}.PA`];
+    COMPANY_NAMES[`${upper}.PA`] ||
+    (upper.includes(".") ? COMPANY_NAMES[upper.split(".")[0]] : null);
   return info?.sector || "";
 }
 
 /**
  * Recherche des actions correspondantes (par symbole, nom d'entreprise ou secteur) pour l'autocomplétion.
+ * Retourne uniquement les tickers canoniques et évite tout doublon.
  */
 export function searchStocks(query, limit = 8) {
   if (!query || !String(query).trim()) return [];
@@ -228,19 +175,22 @@ export function searchStocks(query, limit = 8) {
         name: data.name,
         short: data.short,
         sector: data.sector,
+        exchange: data.exchange || "Marché",
+        flag: data.flag || "🌐",
       });
     }
   };
 
-  // 1. Priorité 1 : Le symbole commence par la requête (ex: "NV" -> NVDA)
+  // 1. Priorité 1 : Le ticker commence par la requête, ou le symbole de base commence par la requête (ex: "HO" -> HO.PA)
   for (const [ticker, data] of Object.entries(COMPANY_NAMES)) {
-    if (ticker.startsWith(q)) {
+    const base = ticker.includes(".") ? ticker.split(".")[0] : ticker;
+    if (ticker.startsWith(q) || base.startsWith(q)) {
       add(ticker, data);
       if (results.length >= limit) return results;
     }
   }
 
-  // 2. Priorité 2 : Le nom court ou complet commence par la requête (ex: "Micros" -> MSFT)
+  // 2. Priorité 2 : Le nom court ou complet commence par la requête (ex: "Thales" -> HO.PA)
   for (const [ticker, data] of Object.entries(COMPANY_NAMES)) {
     if (data.name.toUpperCase().startsWith(q) || data.short.toUpperCase().startsWith(q)) {
       add(ticker, data);
@@ -248,20 +198,23 @@ export function searchStocks(query, limit = 8) {
     }
   }
 
-  // 3. Priorité 3 : Contient la requête dans le symbole
+  // 3. Priorité 3 : Contient la requête dans le symbole ou nom
   for (const [ticker, data] of Object.entries(COMPANY_NAMES)) {
-    if (ticker.includes(q)) {
+    if (
+      ticker.includes(q) ||
+      data.name.toUpperCase().includes(q) ||
+      data.short.toUpperCase().includes(q)
+    ) {
       add(ticker, data);
       if (results.length >= limit) return results;
     }
   }
 
-  // 4. Priorité 4 : Contient la requête dans le nom ou secteur (ex: "Luxe", "Cloud")
+  // 4. Priorité 4 : Contient la requête dans le secteur ou la place boursière
   for (const [ticker, data] of Object.entries(COMPANY_NAMES)) {
     if (
-      data.name.toUpperCase().includes(q) ||
-      data.short.toUpperCase().includes(q) ||
-      (data.sector && data.sector.toUpperCase().includes(q))
+      (data.sector && data.sector.toUpperCase().includes(q)) ||
+      (data.exchange && data.exchange.toUpperCase().includes(q))
     ) {
       add(ticker, data);
       if (results.length >= limit) return results;
