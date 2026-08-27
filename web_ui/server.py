@@ -1601,6 +1601,19 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/status":
             self.send_json(llm_status())
             return
+        if path == "/api/active":
+            with LOCK:
+                active_job = next((public_job(j) for j in JOBS.values() if j.get("status") in {"queued", "running"}), None)
+                latest_job = public_job(list(JOBS.values())[-1]) if JOBS and not active_job else None
+                active_scan = next((public_scan(s) for s in SCAN_JOBS.values() if s.get("status") in {"queued", "running"}), None)
+                latest_scan = public_scan(list(SCAN_JOBS.values())[-1]) if SCAN_JOBS and not active_scan else None
+            self.send_json({
+                "active_job": active_job,
+                "latest_job": latest_job,
+                "active_scan": active_scan,
+                "latest_scan": latest_scan,
+            })
+            return
         if path == "/api/history":
             items = load_history_items()
             self.send_json({"items": items})

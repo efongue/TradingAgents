@@ -1000,7 +1000,10 @@ function SettingsPage({ status }) {
 }
 
 export default function App() {
-  const [page, setPage] = useState("analysis");
+  const [page, setPage] = useState(() => {
+    const saved = localStorage.getItem("tradingagents_page");
+    return saved && ["analysis", "scanner", "history", "models", "settings"].includes(saved) ? saved : "analysis";
+  });
   const [form, setForm] = useState(INITIAL_FORM);
   const [job, setJob] = useState(null);
   const [history, setHistory] = useState([]);
@@ -1047,6 +1050,33 @@ export default function App() {
     loadStatus();
     loadHistory();
     loadCapabilities();
+
+    api("/api/active")
+      .then((activePayload) => {
+        if (activePayload?.active_scan) {
+          setScanJob(activePayload.active_scan);
+        } else {
+          const savedScanId = localStorage.getItem("tradingagents_scan_id");
+          if (savedScanId) {
+            api(`/api/scans/${savedScanId}`).then((s) => setScanJob(s)).catch(() => localStorage.removeItem("tradingagents_scan_id"));
+          } else if (activePayload?.latest_scan) {
+            setScanJob(activePayload.latest_scan);
+          }
+        }
+
+        if (activePayload?.active_job) {
+          setJob(activePayload.active_job);
+        } else {
+          const savedJobId = localStorage.getItem("tradingagents_job_id");
+          if (savedJobId) {
+            api(`/api/jobs/${savedJobId}`).then((j) => setJob(j)).catch(() => localStorage.removeItem("tradingagents_job_id"));
+          } else if (activePayload?.latest_job) {
+            setJob(activePayload.latest_job);
+          }
+        }
+      })
+      .catch(() => {});
+
     const historyId = new URLSearchParams(window.location.search).get("history");
     if (!historyId) return;
     setLoadingHistoryId(historyId);
@@ -1061,6 +1091,16 @@ export default function App() {
       })
       .finally(() => setLoadingHistoryId(null));
   }, []);
+
+  useEffect(() => {
+    if (job?.id) localStorage.setItem("tradingagents_job_id", job.id);
+    else localStorage.removeItem("tradingagents_job_id");
+  }, [job?.id]);
+
+  useEffect(() => {
+    if (scanJob?.id) localStorage.setItem("tradingagents_scan_id", scanJob.id);
+    else localStorage.removeItem("tradingagents_scan_id");
+  }, [scanJob?.id]);
 
   useEffect(() => {
     if (page !== "settings" || !analysisActive) return undefined;
@@ -1092,6 +1132,19 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [job?.id, job?.status]);
 
+  useEffect(() => {
+    if (!scanJob || !["queued", "running"].includes(scanJob.status)) return undefined;
+    const timer = window.setInterval(async () => {
+      try {
+        const next = await api(`/api/scans/${scanJob.id}`);
+        setScanJob(next);
+      } catch {
+        // Transient poll error for scan
+      }
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [scanJob?.id, scanJob?.status]);
+
   const submit = async (event) => {
     event.preventDefault();
     setPollWarning("");
@@ -1105,6 +1158,7 @@ export default function App() {
 
   const navigate = (nextPage) => {
     setPage(nextPage);
+    localStorage.setItem("tradingagents_page", nextPage);
     if (nextPage !== "history-detail" && window.location.search.includes("history=")) {
       window.history.replaceState({}, "", window.location.pathname);
     }
