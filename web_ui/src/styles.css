@@ -289,6 +289,112 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   border-color: var(--mint);
   box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.5);
 }
+.launcher-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.launcher-autocomplete-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #090e17;
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(45, 212, 191, 0.12);
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+}
+
+.autocomplete-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.autocomplete-header small {
+  color: #64748b;
+  font-size: 10.5px;
+}
+
+.autocomplete-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.autocomplete-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 120ms ease;
+  border-left: 2px solid transparent;
+}
+.autocomplete-item:hover,
+.autocomplete-item.highlighted {
+  background: rgba(45, 212, 191, 0.09);
+  border-left-color: var(--mint);
+}
+
+.autocomplete-ticker-col {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.autocomplete-ticker-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: 0.02em;
+}
+.autocomplete-item.highlighted .autocomplete-ticker-tag {
+  background: rgba(45, 212, 191, 0.18);
+  border-color: rgba(45, 212, 191, 0.4);
+  color: var(--mint);
+}
+
+.autocomplete-name {
+  font-size: 13px;
+  font-weight: 550;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.autocomplete-sector-tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+
 .launcher-submit-btn {
   height: 52px;
   padding: 0 24px;

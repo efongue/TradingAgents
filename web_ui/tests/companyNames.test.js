@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getCompanyName, getCompanySector } from "../src/companyNames.js";
+import { getCompanyName, getCompanySector, searchStocks } from "../src/companyNames.js";
 
 test("getCompanyName resolves French CAC 40 tickers correctly", () => {
   assert.equal(getCompanyName("DSY.PA", true), "Dassault Systèmes");
@@ -23,4 +23,19 @@ test("getCompanyName resolves US tickers and distinguishes DIS from DSY", () => 
   assert.equal(getCompanyName("DSY.PA"), "Dassault Systèmes SE");
   assert.equal(getCompanyName("BRK-B", true), "Berkshire Hathaway");
   assert.equal(getCompanyName("HD", true), "Home Depot");
+});
+
+test("searchStocks returns matching stocks for tickers and company names", () => {
+  const nvdaMatches = searchStocks("NVDA");
+  assert.ok(nvdaMatches.some((s) => s.ticker === "NVDA"));
+
+  const msMatches = searchStocks("MS");
+  assert.ok(msMatches.some((s) => s.ticker === "MSFT"));
+  assert.ok(msMatches.some((s) => s.ticker === "MS"));
+
+  const lvmhMatches = searchStocks("LVMH");
+  assert.ok(lvmhMatches.some((s) => s.ticker === "MC.PA" || s.ticker === "MC"));
+
+  const airbusMatches = searchStocks("Airbus");
+  assert.ok(airbusMatches.some((s) => s.ticker === "AIR.PA" || s.ticker === "AIR"));
 });

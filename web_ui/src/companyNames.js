@@ -210,3 +210,63 @@ export function getCompanySector(ticker) {
     COMPANY_NAMES[`${upper}.PA`];
   return info?.sector || "";
 }
+
+/**
+ * Recherche des actions correspondantes (par symbole, nom d'entreprise ou secteur) pour l'autocomplétion.
+ */
+export function searchStocks(query, limit = 8) {
+  if (!query || !String(query).trim()) return [];
+  const q = String(query).trim().toUpperCase();
+  const results = [];
+  const seenTickers = new Set();
+
+  const add = (ticker, data) => {
+    if (!seenTickers.has(ticker)) {
+      seenTickers.add(ticker);
+      results.push({
+        ticker,
+        name: data.name,
+        short: data.short,
+        sector: data.sector,
+      });
+    }
+  };
+
+  // 1. Priorité 1 : Le symbole commence par la requête (ex: "NV" -> NVDA)
+  for (const [ticker, data] of Object.entries(COMPANY_NAMES)) {
+    if (ticker.startsWith(q)) {
+      add(ticker, data);
+      if (results.length >= limit) return results;
+    }
+  }
+
+  // 2. Priorité 2 : Le nom court ou complet commence par la requête (ex: "Micros" -> MSFT)
+  for (const [ticker, data] of Object.entries(COMPANY_NAMES)) {
+    if (data.name.toUpperCase().startsWith(q) || data.short.toUpperCase().startsWith(q)) {
+      add(ticker, data);
+      if (results.length >= limit) return results;
+    }
+  }
+
+  // 3. Priorité 3 : Contient la requête dans le symbole
+  for (const [ticker, data] of Object.entries(COMPANY_NAMES)) {
+    if (ticker.includes(q)) {
+      add(ticker, data);
+      if (results.length >= limit) return results;
+    }
+  }
+
+  // 4. Priorité 4 : Contient la requête dans le nom ou secteur (ex: "Luxe", "Cloud")
+  for (const [ticker, data] of Object.entries(COMPANY_NAMES)) {
+    if (
+      data.name.toUpperCase().includes(q) ||
+      data.short.toUpperCase().includes(q) ||
+      (data.sector && data.sector.toUpperCase().includes(q))
+    ) {
+      add(ticker, data);
+      if (results.length >= limit) return results;
+    }
+  }
+
+  return results.slice(0, limit);
+}
