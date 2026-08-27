@@ -1,27 +1,24 @@
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  AlertTriangle,
-  ArrowUpRight,
-  ArrowDownRight,
   Bookmark,
-  CheckCircle2,
-  ExternalLink,
-  Plus,
+  LayoutGrid,
+  List,
   Play,
-  RefreshCw,
+  Plus,
   Scale,
-  ShieldCheck,
+  Search,
   Sparkles,
-  TrendingUp,
   Trash2,
+  TrendingUp,
+  X,
 } from "lucide-react";
 import { DEMO_ANALYSES } from "./demoData.js";
 
 const DEFAULT_WATCHLIST = [
   { symbol: "NVDA", added_at: "2026-08-27", last_decision: "ACHETER FORT", note: "Leader calcul accéléré et datacenters" },
-  { symbol: "MSFT", added_at: "2026-08-27", last_decision: "ACCUMULER", note: "Monétisation Copilot et Azure" },
-  { symbol: "AAPL", added_at: "2026-08-27", last_decision: "CONSERVER", note: "Division Services et base installée" },
+  { symbol: "MSFT", added_at: "2026-08-27", last_decision: "ACCUMULER", note: "Monétisation Copilot et Azure Cloud" },
+  { symbol: "AAPL", added_at: "2026-08-27", last_decision: "CONSERVER", note: "Division Services et marge brute résiliente" },
 ];
 
 export function getStoredWatchlist() {
@@ -54,6 +51,8 @@ export function addToWatchlist(symbol, note = "") {
 export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpenDemo }) {
   const [items, setItems] = useState(getStoredWatchlist);
   const [newSymbol, setNewSymbol] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [viewMode, setViewMode] = useState("cards"); // "cards" | "table"
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -75,30 +74,83 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
     setItems(updated);
   };
 
+  const filteredItems = useMemo(() => {
+    if (!searchFilter.trim()) return items;
+    const q = searchFilter.trim().toUpperCase();
+    return items.filter((item) => item.symbol.includes(q) || (item.note && item.note.toUpperCase().includes(q)));
+  }, [items, searchFilter]);
+
+  const bullishCount = items.filter((item) => {
+    const demo = DEMO_ANALYSES[item.symbol];
+    const decision = item.last_decision || (demo ? demo.result.display_decision : "");
+    return /ACHETER|BUY|ACCUMULER/.test(decision);
+  }).length;
+
   return (
     <main className="page watchlist-page">
       <div className="page-heading">
         <div>
-          <h1>Watchlist & Surveillance</h1>
-          <p>Gardez un œil sur vos titres prioritaires, comparez leurs signaux et relancez les analyses en un clic.</p>
+          <h1>Watchlist & Portefeuille de Surveillance</h1>
+          <p>Supervisez vos positions clés, comparez les signaux des agents et lancez vos analyses en un clic.</p>
         </div>
+        {items.length >= 2 ? (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              const top = items.slice(0, 3).map((i) => i.symbol);
+              if (onCompareTicker) onCompareTicker(top[0]);
+            }}
+          >
+            <Scale size={16} /> Comparer le Top 3
+          </button>
+        ) : null}
       </div>
 
+      {/* Summary KPI Strip */}
+      <section className="watchlist-kpi-strip">
+        <div className="watchlist-kpi-box">
+          <Bookmark size={20} className="kpi-icon" />
+          <div>
+            <span className="kpi-label">Titres Surveillés</span>
+            <strong className="kpi-value">{items.length}</strong>
+          </div>
+        </div>
+        <div className="watchlist-kpi-box">
+          <TrendingUp size={20} className="kpi-icon positive" />
+          <div>
+            <span className="kpi-label">Signaux Haussiers</span>
+            <strong className="kpi-value positive">{bullishCount} / {items.length}</strong>
+          </div>
+        </div>
+        <div className="watchlist-kpi-box">
+          <Sparkles size={20} className="kpi-icon" />
+          <div>
+            <span className="kpi-label">Mode Démo Instantané</span>
+            <span className="kpi-subtext">3 analyses certifiées pré-chargées</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Controls: Search, Add & View Switcher */}
       <section className="watchlist-controls-panel">
         <form onSubmit={handleAdd} className="watchlist-add-form">
-          <input
-            value={newSymbol}
-            onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
-            placeholder="Ajouter une action (ex: GOOGL, AMZN, TSLA)..."
-            maxLength={15}
-          />
+          <div className="watchlist-input-wrapper">
+            <Plus size={16} className="input-icon" />
+            <input
+              value={newSymbol}
+              onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
+              placeholder="Ajouter un symbole (ex: TSLA, AMZN)..."
+              maxLength={15}
+            />
+          </div>
           <button type="submit" className="primary-button" disabled={!newSymbol.trim()}>
-            <Plus size={17} /> Ajouter à la liste
+            Ajouter
           </button>
         </form>
 
         <div className="watchlist-quick-chips">
-          <span>Suggestions rapides :</span>
+          <span>Suggestions :</span>
           {["AMZN", "GOOGL", "META", "TSLA", "NFLX", "AMD"].map((sym) => (
             <button
               key={sym}
@@ -110,23 +162,162 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
             </button>
           ))}
         </div>
+
+        <div className="watchlist-view-switcher">
+          {items.length > 3 ? (
+            <div className="watchlist-filter-box">
+              <Search size={14} />
+              <input
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                placeholder="Filtrer..."
+              />
+              {searchFilter ? (
+                <button type="button" onClick={() => setSearchFilter("")}>
+                  <X size={12} />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="view-toggle-group">
+            <button
+              type="button"
+              className={viewMode === "cards" ? "active" : ""}
+              onClick={() => setViewMode("cards")}
+              title="Vue Grille de Cartes"
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              type="button"
+              className={viewMode === "table" ? "active" : ""}
+              onClick={() => setViewMode("table")}
+              title="Vue Tableau Pro"
+            >
+              <List size={16} />
+            </button>
+          </div>
+        </div>
       </section>
 
-      {items.length === 0 ? (
+      {/* Main Content */}
+      {filteredItems.length === 0 ? (
         <div className="empty-state">
           <Bookmark size={36} />
-          <strong>Votre Watchlist est vide</strong>
-          <span>Ajoutez des actions pour suivre leurs décisions et alertes au fil du temps.</span>
+          <strong>Aucun titre dans la liste</strong>
+          <span>{searchFilter ? "Aucun titre ne correspond à votre filtre." : "Ajoutez des actions pour suivre leurs signaux et lancer vos analyses instantanées."}</span>
         </div>
+      ) : viewMode === "table" ? (
+        /* PRO TABLE VIEW */
+        <section className="watchlist-table-panel">
+          <table className="watchlist-table">
+            <thead>
+              <tr>
+                <th>Symbole</th>
+                <th>Dernière Décision</th>
+                <th>Consensus IA</th>
+                <th>Thèse / Note</th>
+                <th>Date d'ajout</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredItems.map((item) => {
+                const demo = DEMO_ANALYSES[item.symbol];
+                const decision = item.last_decision || (demo ? demo.result.display_decision : "À analyser");
+                const isBuy = /ACHETER|BUY|ACCUMULER/.test(decision);
+                const isSell = /VENDRE|SELL/.test(decision);
+                const tone = isBuy ? "positive" : isSell ? "negative" : "neutral";
+                const consensus = demo?.result?.consensus || { bullish: 70, neutral: 20, bearish: 10 };
+
+                return (
+                  <tr key={item.symbol}>
+                    <td>
+                      <div className="watchlist-table-symbol">
+                        <strong>{item.symbol}</strong>
+                        {demo ? <span className="demo-badge">Certifié</span> : null}
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`watchlist-decision-pill ${tone}`}>
+                        <i className="status-dot" /> {decision}
+                      </span>
+                    </td>
+                    <td>
+                      {demo ? (
+                        <div className="watchlist-mini-consensus" title={`${consensus.bullish}% Haussier`}>
+                          <div className="mini-bar">
+                            <span style={{ width: `${consensus.bullish}%` }} />
+                          </div>
+                          <span className="mini-label">{consensus.bullish}% Bull</span>
+                        </div>
+                      ) : (
+                        <span className="muted-text">—</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className="watchlist-table-note">
+                        {item.note || (demo ? demo.result.consensus?.verdict : "Prêt pour analyse.")}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="watchlist-table-date">{item.added_at}</span>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <div className="watchlist-row-actions">
+                        <button
+                          type="button"
+                          className="primary-button compact"
+                          onClick={() => onAnalyzeTicker(item.symbol)}
+                        >
+                          <Play size={13} fill="currentColor" /> Analyser
+                        </button>
+                        {demo ? (
+                          <button
+                            type="button"
+                            className="secondary-button compact"
+                            onClick={() => onOpenDemo(demo)}
+                            title="Voir démo instantanée"
+                          >
+                            <Sparkles size={13} /> Démo
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="secondary-button compact"
+                          onClick={() => onCompareTicker(item.symbol)}
+                          title="Comparer"
+                        >
+                          <Scale size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-button compact-remove"
+                          onClick={() => handleRemove(item.symbol)}
+                          title={`Retirer ${item.symbol}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
       ) : (
+        /* CARDS GRID VIEW */
         <div className="watchlist-grid">
           <AnimatePresence>
-            {items.map((item) => {
+            {filteredItems.map((item) => {
               const demo = DEMO_ANALYSES[item.symbol];
               const decision = item.last_decision || (demo ? demo.result.display_decision : "À analyser");
               const isBuy = /ACHETER|BUY|ACCUMULER/.test(decision);
               const isSell = /VENDRE|SELL/.test(decision);
               const tone = isBuy ? "positive" : isSell ? "negative" : "neutral";
+              const consensus = demo?.result?.consensus || { bullish: 75, neutral: 15, bearish: 10 };
 
               return (
                 <motion.article
@@ -140,13 +331,27 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                 >
                   <div className="watchlist-card-top">
                     <div>
+                      <div className="watchlist-symbol-row">
+                        <h2>{item.symbol}</h2>
+                        {demo ? <span className="demo-badge">Certifié</span> : null}
+                      </div>
                       <span className="watchlist-added-date">Ajouté le {item.added_at}</span>
-                      <h2>{item.symbol}</h2>
                     </div>
                     <span className={`watchlist-decision-pill ${tone}`}>
-                      {decision}
+                      <i className="status-dot" /> {decision}
                     </span>
                   </div>
+
+                  {demo ? (
+                    <div className="watchlist-card-consensus">
+                      <div className="consensus-bar-track">
+                        <div className="consensus-fill bullish" style={{ width: `${consensus.bullish}%` }} />
+                        <div className="consensus-fill neutral" style={{ width: `${consensus.neutral}%` }} />
+                        <div className="consensus-fill bearish" style={{ width: `${consensus.bearish}%` }} />
+                      </div>
+                      <span className="consensus-mini-text">{consensus.bullish}% Consensus Haussier</span>
+                    </div>
+                  ) : null}
 
                   <p className="watchlist-note">
                     {item.note || (demo ? demo.result.consensus?.verdict : "Prêt pour une analyse multi-agents détaillée.")}
@@ -158,7 +363,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                       className="primary-button"
                       onClick={() => onAnalyzeTicker(item.symbol)}
                     >
-                      <Play size={15} fill="currentColor" /> Analyser
+                      <Play size={14} fill="currentColor" /> Analyser
                     </button>
                     {demo ? (
                       <button
@@ -166,7 +371,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                         className="secondary-button"
                         onClick={() => onOpenDemo(demo)}
                       >
-                        <Sparkles size={15} /> Voir démo
+                        <Sparkles size={14} /> Démo
                       </button>
                     ) : null}
                     <button
@@ -175,7 +380,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                       onClick={() => onCompareTicker(item.symbol)}
                       title="Comparer avec d'autres titres"
                     >
-                      <Scale size={15} /> Comparer
+                      <Scale size={14} /> Comparer
                     </button>
                     <button
                       type="button"
@@ -183,7 +388,7 @@ export default function WatchlistPage({ onAnalyzeTicker, onCompareTicker, onOpen
                       onClick={() => handleRemove(item.symbol)}
                       aria-label={`Retirer ${item.symbol}`}
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={15} />
                     </button>
                   </div>
                 </motion.article>
