@@ -29,6 +29,7 @@ WEB_ROOT = Path(__file__).resolve().parent
 DIST_DIR = WEB_ROOT / "dist"
 DATA_DIR = WEB_ROOT / "data"
 HISTORY_FILE = DATA_DIR / "history.json"
+SCANS_FILE = DATA_DIR / "scans.json"
 REPORTS_DIR = DATA_DIR / "reports"
 
 sys.path.insert(0, str(ROOT))
@@ -117,8 +118,32 @@ VENDOR_LABELS = {
     "polymarket": "Polymarket",
 }
 
+def load_scans_cache() -> dict[str, dict]:
+    try:
+        if SCANS_FILE.exists():
+            payload = json.loads(SCANS_FILE.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                return payload
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {}
+
+
+def save_scans_cache() -> None:
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        with LOCK:
+            snapshot = {
+                k: {prop: val for prop, val in v.items() if prop != "started_at"}
+                for k, v in SCAN_JOBS.items()
+            }
+        SCANS_FILE.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
+    except (OSError, TypeError):
+        pass
+
+
 JOBS: dict[str, dict] = {}
-SCAN_JOBS: dict[str, dict] = {}
+SCAN_JOBS: dict[str, dict] = load_scans_cache()
 LOCK = threading.RLock()
 
 STAGE_DEFS = [
@@ -1120,7 +1145,9 @@ def active_work_exists() -> bool:
 
 def update_scan(job_id: str, **changes) -> None:
     with LOCK:
-        SCAN_JOBS[job_id].update(changes)
+        if job_id in SCAN_JOBS:
+            SCAN_JOBS[job_id].update(changes)
+    save_scans_cache()
 
 
 def public_scan(job: dict) -> dict:
@@ -1777,6 +1804,7 @@ class Handler(BaseHTTPRequestHandler):
                     "error": None,
                 }
                 SCAN_JOBS[scan_id] = scan
+            save_scans_cache()
             clean_payload = {
                 "symbols": symbols,
                 "date": analysis_date,

@@ -1790,6 +1790,18 @@ export default function App() {
   }, [page, analysisActive]);
 
   useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (analysisActive || scanActive) {
+        e.preventDefault();
+        e.returnValue = "Une analyse multi-agents est en cours. Si vous actualisez, le suivi direct sera reconnecté mais la vue temps réel peut clignoter.";
+        return e.returnValue;
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [analysisActive, scanActive]);
+
+  useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [page, job?.id]);
 
