@@ -2556,6 +2556,32 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   background: rgba(244, 63, 94, 0.1);
 }
 
+/* Boutons d'ajout Watchlist interactifs avec changement d'état */
+.watchlist-toggle-btn.bookmarked {
+  background: var(--mint-soft) !important;
+  color: var(--mint) !important;
+  border-color: rgba(45, 212, 191, 0.5) !important;
+  box-shadow: 0 0 16px rgba(45, 212, 191, 0.25) !important;
+}
+.watchlist-toggle-btn.bookmarked:hover {
+  background: rgba(244, 63, 94, 0.15) !important;
+  color: #fda4af !important;
+  border-color: rgba(244, 63, 94, 0.45) !important;
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.25) !important;
+}
+
+.watchlist-toggle-chip.bookmarked {
+  background: var(--mint-soft) !important;
+  color: var(--mint) !important;
+  border-color: rgba(45, 212, 191, 0.5) !important;
+  box-shadow: 0 0 12px rgba(45, 212, 191, 0.25) !important;
+}
+.watchlist-toggle-chip.bookmarked:hover {
+  background: rgba(244, 63, 94, 0.15) !important;
+  color: #fda4af !important;
+  border-color: rgba(244, 63, 94, 0.45) !important;
+}
+
 /* ==========================================================================
    Financial Sparklines & Trend Micro-Graphs
    ========================================================================== */

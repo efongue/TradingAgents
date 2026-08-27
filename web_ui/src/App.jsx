@@ -58,7 +58,7 @@ import {
 import { api } from "./api.js";
 import ScannerPage from "./ScannerPage.jsx";
 import ComparePage from "./ComparePage.jsx";
-import WatchlistPage, { addToWatchlist } from "./WatchlistPage.jsx";
+import WatchlistPage, { addToWatchlist, isInWatchlist, toggleWatchlist } from "./WatchlistPage.jsx";
 import { DEMO_ANALYSES } from "./demoData.js";
 import { getCompanyName } from "./companyNames.js";
 import {
@@ -1222,6 +1222,38 @@ ${result.summary ? result.summary.slice(0, 350) : "Analyse disponible."}...
   }
 }
 
+function WatchlistToggleButton({ ticker, onShowToast }) {
+  const [bookmarked, setBookmarked] = useState(() => isInWatchlist(ticker));
+
+  useEffect(() => {
+    setBookmarked(isInWatchlist(ticker));
+    const handleSync = () => setBookmarked(isInWatchlist(ticker));
+    window.addEventListener("watchlist_changed", handleSync);
+    return () => window.removeEventListener("watchlist_changed", handleSync);
+  }, [ticker]);
+
+  const handleToggle = () => {
+    const { added } = toggleWatchlist(ticker);
+    setBookmarked(added);
+    if (onShowToast) {
+      onShowToast(added ? `${ticker} ajouté à votre Watchlist !` : `${ticker} retiré de votre Watchlist`);
+    }
+  };
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className={`secondary-button watchlist-toggle-btn ${bookmarked ? "bookmarked" : ""}`}
+      onClick={handleToggle}
+      title={bookmarked ? "Dans votre Watchlist (cliquer pour retirer)" : "Ajouter ce titre à la Watchlist"}
+    >
+      <Bookmark size={18} fill={bookmarked ? "currentColor" : "none"} />
+      <span>{bookmarked ? "Dans la Watchlist" : "Watchlist"}</span>
+    </motion.button>
+  );
+}
+
 function ResultPage({ job, onReset, historical = false, onBackHistory, onAddToWatchlist, onCompareTicker, onShowToast }) {
   const [tab, setTab] = useState("summary");
   const result = job.result;
@@ -1267,20 +1299,7 @@ function ResultPage({ job, onReset, historical = false, onBackHistory, onAddToWa
             <Copy size={18} /> Copier le mémo
           </motion.button>
 
-          {onAddToWatchlist ? (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="secondary-button"
-              onClick={() => {
-                onAddToWatchlist(job.ticker);
-                if (onShowToast) onShowToast(`${job.ticker} ajouté à votre Watchlist !`);
-              }}
-              title="Ajouter ce titre à la Watchlist"
-            >
-              <Bookmark size={18} /> Watchlist
-            </motion.button>
-          ) : null}
+          <WatchlistToggleButton ticker={job.ticker} onShowToast={onShowToast} />
 
           {onCompareTicker ? (
             <motion.button

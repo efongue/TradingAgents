@@ -43,12 +43,44 @@ export function saveStoredWatchlist(items) {
   }
 }
 
+export function isInWatchlist(symbol) {
+  if (!symbol) return false;
+  const current = getStoredWatchlist();
+  const upper = symbol.trim().toUpperCase();
+  return current.some((item) => item.symbol === upper);
+}
+
+export function removeFromWatchlist(symbol) {
+  const current = getStoredWatchlist();
+  const upper = symbol.trim().toUpperCase();
+  const updated = current.filter((item) => item.symbol !== upper);
+  saveStoredWatchlist(updated);
+  window.dispatchEvent(new Event("watchlist_changed"));
+  return updated;
+}
+
+export function toggleWatchlist(symbol, note = "") {
+  const current = getStoredWatchlist();
+  const upper = symbol.trim().toUpperCase();
+  const exists = current.some((item) => item.symbol === upper);
+  let updated;
+  if (exists) {
+    updated = current.filter((item) => item.symbol !== upper);
+  } else {
+    updated = [{ symbol: upper, added_at: new Date().toISOString().slice(0, 10), note, last_decision: "À analyser" }, ...current];
+  }
+  saveStoredWatchlist(updated);
+  window.dispatchEvent(new Event("watchlist_changed"));
+  return { updated, added: !exists };
+}
+
 export function addToWatchlist(symbol, note = "") {
   const current = getStoredWatchlist();
   const upper = symbol.trim().toUpperCase();
   if (current.some((item) => item.symbol === upper)) return current;
   const updated = [{ symbol: upper, added_at: new Date().toISOString().slice(0, 10), note, last_decision: "À analyser" }, ...current];
   saveStoredWatchlist(updated);
+  window.dispatchEvent(new Event("watchlist_changed"));
   return updated;
 }
 

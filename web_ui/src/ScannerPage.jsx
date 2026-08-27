@@ -20,6 +20,7 @@ import { getCompanyName } from "./companyNames.js";
 import { getDecisionTone, formatDecisionLabel, getDecisionStrength } from "./decisionUtils.js";
 import DecisionBadge from "./DecisionBadge.jsx";
 import Sparkline from "./Sparkline.jsx";
+import { isInWatchlist, toggleWatchlist } from "./WatchlistPage.jsx";
 import "./scanner.css";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -118,7 +119,37 @@ function ScanProgress({ job }) {
   );
 }
 
-function RankingTable({ candidates, final = false, onOpenAnalysis, onAddToWatchlist }) {
+function ScannerWatchlistButton({ symbol }) {
+  const [bookmarked, setBookmarked] = useState(() => isInWatchlist(symbol));
+
+  useEffect(() => {
+    setBookmarked(isInWatchlist(symbol));
+    const handleSync = () => setBookmarked(isInWatchlist(symbol));
+    window.addEventListener("watchlist_changed", handleSync);
+    return () => window.removeEventListener("watchlist_changed", handleSync);
+  }, [symbol]);
+
+  const handleToggle = () => {
+    const { added } = toggleWatchlist(symbol);
+    setBookmarked(added);
+  };
+
+  return (
+    <motion.button
+      type="button"
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className={`chip-button watchlist-toggle-chip ${bookmarked ? "bookmarked" : ""}`}
+      onClick={handleToggle}
+      title={bookmarked ? "Dans votre Watchlist (cliquer pour retirer)" : "Ajouter à la Watchlist"}
+    >
+      <Bookmark size={13} fill={bookmarked ? "currentColor" : "none"} />
+      <span>{bookmarked ? "Suivi" : "Watchlist"}</span>
+    </motion.button>
+  );
+}
+
+function RankingTable({ candidates, final = false, onOpenAnalysis }) {
   if (!candidates?.length) return null;
   return (
     <div className="scanner-table-wrap">
@@ -202,16 +233,7 @@ function RankingTable({ candidates, final = false, onOpenAnalysis, onAddToWatchl
                       <ExternalLink size={14} /> Voir
                     </motion.button>
                   ) : null}
-                  {onAddToWatchlist ? (
-                    <button
-                      type="button"
-                      className="chip-button"
-                      onClick={() => onAddToWatchlist(candidate.symbol)}
-                      title="Ajouter à la Watchlist"
-                    >
-                      <Bookmark size={13} /> Watchlist
-                    </button>
-                  ) : null}
+                  <ScannerWatchlistButton symbol={candidate.symbol} />
                 </div>
               </td>
             </motion.tr>
