@@ -41,4 +41,15 @@ test("searchStocks returns matching stocks for tickers and company names", () =>
 
   const synopsysMatches = searchStocks("Synopsys");
   assert.ok(synopsysMatches.some((s) => s.ticker === "SNPS"));
+
+  // Trade Republic alias resolution
+  const sypMatches = searchStocks("SYP");
+  assert.ok(sypMatches.some((s) => s.ticker === "SNPS"), "SYP should resolve to SNPS");
+  assert.equal(getCompanyName("SYP"), "Synopsys Inc.", "getCompanyName(SYP) should resolve to Synopsys");
+
+  const apcMatches = searchStocks("APC");
+  assert.ok(apcMatches.some((s) => s.ticker === "AAPL"), "APC should resolve to AAPL");
+
+  const nvdMatches = searchStocks("NVD");
+  assert.ok(nvdMatches.some((s) => s.ticker === "NVDA"), "NVD should resolve to NVDA");
 });
