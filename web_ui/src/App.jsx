@@ -39,6 +39,7 @@ import {
   Plus,
   RefreshCw,
   Scale,
+  ScanSearch,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -47,9 +48,12 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { api } from "./api.js";
+import ScannerPage from "./ScannerPage.jsx";
 
 const NAV_ITEMS = [
   ["analysis", "Nouvelle analyse", TrendingUp],
+  ["scanner", "Scanner", ScanSearch],
   ["history", "Historique", History],
   ["models", "Modèles", Box],
   ["settings", "Configuration", Settings],
@@ -128,20 +132,6 @@ function formatMarketNumber(value, maximumFractionDigits = 2) {
     : parsed.toLocaleString("fr-FR", { maximumFractionDigits });
 }
 
-async function api(path, options) {
-  const response = await fetch(path, {
-    headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
-    ...options,
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(payload.error || `Erreur HTTP ${response.status}`);
-    error.status = response.status;
-    throw error;
-  }
-  return payload;
-}
-
 function LogoMark() {
   return (
     <svg className="logo-mark" viewBox="0 0 34 34" aria-hidden="true">
@@ -151,7 +141,7 @@ function LogoMark() {
   );
 }
 
-function Sidebar({ page, onPage, online, model, analysisActive, open, onClose }) {
+function Sidebar({ page, onPage, online, model, provider, analysisActive, scanActive, open, onClose }) {
   return (
     <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
       <div className="brand-row">
@@ -164,7 +154,9 @@ function Sidebar({ page, onPage, online, model, analysisActive, open, onClose })
       <nav className="primary-nav" aria-label="Navigation principale">
         {NAV_ITEMS.map(([id, label, Icon]) => {
           const active = id === "history" ? ["history", "history-detail"].includes(page) : page === id;
-          const visibleLabel = id === "analysis" && analysisActive ? "Analyse en cours" : label;
+          const visibleLabel = id === "analysis" && analysisActive
+            ? "Analyse en cours"
+            : id === "scanner" && scanActive ? "Scan en cours" : label;
           return (
           <button
             className={`nav-item ${active ? "active" : ""}`}
@@ -176,7 +168,9 @@ function Sidebar({ page, onPage, online, model, analysisActive, open, onClose })
           >
             <Icon size={21} strokeWidth={1.7} />
             <span>{visibleLabel}</span>
-            {id === "analysis" && analysisActive ? <span className="nav-progress-badge" aria-hidden="true" /> : null}
+            {(id === "analysis" && analysisActive) || (id === "scanner" && scanActive)
+              ? <span className="nav-progress-badge" aria-hidden="true" />
+              : null}
           </button>
           );
         })}
@@ -185,11 +179,11 @@ function Sidebar({ page, onPage, online, model, analysisActive, open, onClose })
         <div className="model-state">
           <div className={`status-dot ${online ? "online" : "offline"}`} />
           <div>
-            <strong>{online ? "Ollama" : "Ollama hors ligne"}</strong>
+            <strong>{online ? provider : `${provider} hors ligne`}</strong>
             <span>{model || "Modèle non détecté"}</span>
           </div>
         </div>
-        <div className="local-note">Modèle local · aucune clé externe</div>
+        <div className="local-note">Passerelle locale</div>
       </div>
     </aside>
   );
@@ -485,7 +479,7 @@ function ContextLimitCard({ limits }) {
         <Gauge size={20} />
         <div>
           <strong>Contexte du modèle</strong>
-          <span>{hasWindow ? `${formatTokens(windowTokens)} tokens` : "Limite non communiquée par Ollama"}</span>
+          <span>{hasWindow ? `${formatTokens(windowTokens)} tokens` : "Limite non communiquée par la passerelle"}</span>
         </div>
       </div>
       {hasWindow ? (
@@ -500,8 +494,8 @@ function ContextLimitCard({ limits }) {
       </dl>
       {state === "warning" ? <p>La requête approche de la limite. Les réponses peuvent être raccourcies.</p> : null}
       {state === "critical" ? <p>La requête estimée dépasse la fenêtre disponible et risque d’échouer.</p> : null}
-      {!hasWindow && limits.model_capacity_tokens ? <p>Capacité déclarée du modèle : {formatTokens(limits.model_capacity_tokens)} tokens. Le contexte réellement alloué sera lu après le premier appel.</p> : null}
-      <small>{limits.context_source || (limits.model_capacity_tokens ? "La capacité du modèle est connue, mais pas encore le contexte alloué." : "Ollama n’a communiqué aucune capacité de contexte.")} Le nombre de tokens du prompt reste une estimation.</small>
+      {!hasWindow && limits.model_capacity_tokens ? <p>Capacité maximale déclarée : {formatTokens(limits.model_capacity_tokens)} tokens. OmniRoute n’expose pas de fenêtre active par requête.</p> : null}
+      <small>{limits.context_source || (limits.model_capacity_tokens ? "La capacité du modèle est connue; la fenêtre active ne l’est pas." : "La passerelle n’a communiqué aucune capacité de contexte.")} Le nombre de tokens du prompt reste une estimation.</small>
     </section>
   );
 }
@@ -552,11 +546,11 @@ function AnalysisPage({ form, setForm, job, online, analysts, dataSteps, analyst
       <div className="page-heading">
         <div>
           <h1>Analyser une action</h1>
-          <p>Choisissez une action : plusieurs agents IA locaux confrontent leurs analyses à des données vérifiées.</p>
+          <p>Choisissez une action : plusieurs agents IA confrontent leurs analyses à des données vérifiées.</p>
         </div>
       </div>
       <AnalysisForm form={form} setForm={setForm} disabled={busy} online={online} analysts={analysts} analystsError={analystsError} onSubmit={onSubmit} />
-      {!online ? <div className="connection-error"><AlertTriangle size={18} /> Ollama ne répond pas pour le moment. Ouvrez l’application Ollama, puis réessayez.</div> : null}
+      {!online ? <div className="connection-error"><AlertTriangle size={18} /> La passerelle IA ne répond pas pour le moment.</div> : null}
       {pollWarning ? <div className="connection-warning"><RefreshCw size={18} /> {pollWarning}</div> : null}
       {["error", "interrupted"].includes(job?.status) ? <AnalysisFailure job={job} /> : null}
       <div className="analysis-grid">
@@ -893,7 +887,7 @@ function ResultPage({ job, onReset, historical = false, onBackHistory }) {
       <div className="page-heading result-heading">
         <div>
           <h1>{historical ? `Analyse historique — ${job.ticker}` : `Analyse de ${job.ticker}`}</h1>
-          <p>{historical ? "Analyse enregistrée, disponible en consultation uniquement" : `Analyse du ${job.analysis_date} · Ollama · ${job.model}`}{historical ? ` · Réalisée le ${job.analysis_date}` : ""}</p>
+          <p>{historical ? "Analyse enregistrée, disponible en consultation uniquement" : `Analyse du ${job.analysis_date} · ${job.model}`}{historical ? ` · Réalisée le ${job.analysis_date}` : ""}</p>
         </div>
         <div className="heading-actions">
           {historical ? (
@@ -951,12 +945,12 @@ function HistoryPage({ history, loadingId, error, onSelect }) {
 function ModelsPage({ status, refresh }) {
   return (
     <main className="page simple-page">
-      <div className="page-heading"><div><h1>Modèles</h1><p>Voici les modèles disponibles dans votre instance Ollama locale.</p></div><button className="secondary-button" onClick={refresh}><RefreshCw size={17} /> Rafraîchir la liste</button></div>
+      <div className="page-heading"><div><h1>Modèles</h1><p>Voici le modèle actif pour TradingAgents.</p></div><button className="secondary-button" onClick={refresh}><RefreshCw size={17} /> Rafraîchir la liste</button></div>
       <section className="model-list-panel">
-        <div className="connection-strip"><span className={`status-dot ${status.online ? "online" : "offline"}`} /><strong>{status.online ? "Ollama connecté" : "Ollama hors ligne"}</strong><span>{status.endpoint}</span></div>
+        <div className="connection-strip"><span className={`status-dot ${status.online ? "online" : "offline"}`} /><strong>{status.online ? `${status.provider_name} connecté` : `${status.provider_name} hors ligne`}</strong><span>{status.endpoint}</span></div>
         {(status.models || []).map((model) => (
           <div className={`model-row ${model.name === status.active_model ? "selected" : ""}`} key={model.name}>
-            <Bot size={22} /><div><strong>{model.name}</strong><span>{model.size}</span></div>{model.name === status.active_model ? <span className="active-label">Actif</span> : null}
+            <Bot size={22} /><div><strong>{model.name}</strong><span>{model.provider}</span></div>{model.name === status.active_model ? <span className="active-label">Actif</span> : null}
           </div>
         ))}
       </section>
@@ -965,25 +959,41 @@ function ModelsPage({ status, refresh }) {
 }
 
 function SettingsPage({ status }) {
-  const configuration = status.configuration || {};
+  const configuration = status.tradingagents || {};
+  const capabilities = status.capabilities || {};
+  const analysis = status.analysis;
   const budgets = configuration.output_token_budgets || {};
   const budgetCopy = [budgets[1], budgets[2], budgets[3]].every((value) => value !== undefined)
     ? `${formatTokens(budgets[1])} / ${formatTokens(budgets[2])} / ${formatTokens(budgets[3])}`
     : "Non disponible";
   return (
     <main className="page simple-page">
-      <div className="page-heading"><div><h1>Configuration</h1><p>Ces réglages sont utilisés par l’interface sans modifier le projet TradingAgents.</p></div></div>
+      <div className="page-heading"><div><h1>Configuration</h1><p>Valeurs détectées automatiquement au démarrage et capacités annoncées par OmniRoute.</p></div></div>
+      <h2 className="settings-title">TradingAgents</h2>
       <section className="settings-panel">
-        <div className="setting-row"><div><Gauge size={21} /><span><strong>Endpoint Ollama</strong><small>Adresse communiquée par le serveur local</small></span></div><code>{status.openai_endpoint || "Non disponible"}</code></div>
-        <div className="setting-row"><div><Sparkles size={21} /><span><strong>Modèle actif</strong><small>Modèle réellement sélectionné par le serveur</small></span></div><code>{status.active_model || "Non disponible"}</code></div>
-        <div className="setting-row"><div><Database size={21} /><span><strong>Fenêtre de contexte active</strong><small>{status.context_source || "Le modèle sélectionné n’est pas chargé dans Ollama"}</small></span></div><code>{status.context_window_tokens ? `${formatTokens(status.context_window_tokens)} tokens` : "Non disponible"}</code></div>
-        <div className="setting-row"><div><Gauge size={21} /><span><strong>Capacité déclarée du modèle</strong><small>Maximum annoncé par les métadonnées du modèle, distinct du contexte alloué</small></span></div><code>{status.model_capacity_tokens ? `${formatTokens(status.model_capacity_tokens)} tokens` : "Non disponible"}</code></div>
+        <div className="setting-row"><div><Gauge size={21} /><span><strong>Fournisseur</strong><small>TRADINGAGENTS_LLM_PROVIDER</small></span></div><code>{configuration.provider || "Non disponible"}</code></div>
+        <div className="setting-row"><div><Gauge size={21} /><span><strong>Endpoint LLM</strong><small>TRADINGAGENTS_LLM_BACKEND_URL</small></span></div><code>{configuration.endpoint || "Non disponible"}</code></div>
+        <div className="setting-row"><div><Sparkles size={21} /><span><strong>Modèles rapide / profond</strong><small>Modèles réellement transmis au client</small></span></div><code>{configuration.quick_model && configuration.deep_model ? `${configuration.quick_model} / ${configuration.deep_model}` : "Non disponible"}</code></div>
         <div className="setting-row"><div><SlidersHorizontal size={21} /><span><strong>Température</strong><small>Valeur envoyée à chaque appel du modèle</small></span></div><code>{configuration.temperature === null || configuration.temperature === undefined ? "Non disponible" : Number(configuration.temperature).toLocaleString("fr-FR")}</code></div>
-        <div className="setting-row"><div><Gauge size={21} /><span><strong>Budgets de réponse</strong><small>Rapide / moyenne / approfondie, en tokens par appel</small></span></div><code>{budgetCopy}</code></div>
         <div className="setting-row"><div><RefreshCw size={21} /><span><strong>Relances du modèle</strong><small>Maximum autorisé pour chaque appel</small></span></div><code>{configuration.max_retries_per_call ?? "Non disponible"}</code></div>
-        <div className="setting-row"><div><SlidersHorizontal size={21} /><span><strong>Réflexion hybride</strong><small>Valeur récupérée depuis le client Ollama utilisé</small></span></div><code>{configuration.think_enabled === false ? "think=false" : configuration.think_enabled === true ? "think=true" : "Non disponible"}</code></div>
         <div className="setting-row"><div><History size={21} /><span><strong>Reprise après interruption</strong><small>Sauvegarde des étapes de l’analyse</small></span></div><code>{configuration.checkpoint_enabled === true ? "active" : configuration.checkpoint_enabled === false ? "inactive" : "Non disponible"}</code></div>
         <div className="setting-row"><div><ShieldCheck size={21} /><span><strong>Blocage des incohérences</strong><small>Compare les prix proposés au dernier cours vérifié</small></span></div><code>{configuration.price_consistency_check === true ? "actif" : configuration.price_consistency_check === false ? "inactif" : "Non disponible"}</code></div>
+      </section>
+      <h2 className="settings-title">Capacités OmniRoute</h2>
+      <section className="settings-panel">
+        <div className="setting-row"><div><Database size={21} /><span><strong>Entrée maximale</strong><small>Capacité annoncée, pas une fenêtre active</small></span></div><code>{capabilities.max_input_tokens ? `${formatTokens(capabilities.max_input_tokens)} tokens` : "Non disponible"}</code></div>
+        <div className="setting-row"><div><Gauge size={21} /><span><strong>Sortie maximale</strong><small>Maximum annoncé par OmniRoute</small></span></div><code>{capabilities.max_output_tokens ? `${formatTokens(capabilities.max_output_tokens)} tokens` : "Non disponible"}</code></div>
+        <div className="setting-row"><div><Sparkles size={21} /><span><strong>Appels d’outils</strong><small>Capacité annoncée pour le modèle</small></span></div><code>{capabilities.tool_calling === true ? "supportés" : capabilities.tool_calling === false ? "non supportés" : "Non disponible"}</code></div>
+        <div className="setting-row"><div><Sparkles size={21} /><span><strong>Raisonnement</strong><small>Capacité annoncée pour le modèle</small></span></div><code>{capabilities.reasoning === true ? "supporté" : capabilities.reasoning === false ? "non supporté" : "Non disponible"}</code></div>
+      </section>
+      <h2 className="settings-title">Analyse en cours</h2>
+      <section className="settings-panel">
+        {analysis ? <>
+          <div className="setting-row"><div><Gauge size={21} /><span><strong>Instrument / date</strong><small>Requête actuellement exécutée</small></span></div><code>{analysis.ticker} · {analysis.analysis_date}</code></div>
+          <div className="setting-row"><div><SlidersHorizontal size={21} /><span><strong>Profondeur / analystes</strong><small>Choix envoyés par le formulaire</small></span></div><code>{analysis.depth} · {analysis.analysts.join(", ")}</code></div>
+          <div className="setting-row"><div><Gauge size={21} /><span><strong>Budget / appels estimés</strong><small>Tokens de sortie par appel · estimation</small></span></div><code>{formatTokens(analysis.output_tokens_per_call)} / {analysis.estimated_model_calls ?? "—"}</code></div>
+        </> : <div className="settings-empty">Aucune analyse en cours. Les paramètres apparaîtront ici après le lancement.</div>}
+        <div className="setting-row"><div><Gauge size={21} /><span><strong>Budgets disponibles</strong><small>Rapide / moyenne / approfondie</small></span></div><code>{budgetCopy}</code></div>
       </section>
     </main>
   );
@@ -994,7 +1004,7 @@ export default function App() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [job, setJob] = useState(null);
   const [history, setHistory] = useState([]);
-  const [status, setStatus] = useState({ online: false, models: [], endpoint: "", openai_endpoint: "", active_model: "", context_window_tokens: null, context_source: null, configuration: {} });
+  const [status, setStatus] = useState({ online: false, models: [], endpoint: "", active_model: "", capabilities: {}, tradingagents: {}, analysis: null });
   const [menuOpen, setMenuOpen] = useState(false);
   const [loadingHistoryId, setLoadingHistoryId] = useState(null);
   const [historyError, setHistoryError] = useState("");
@@ -1002,8 +1012,10 @@ export default function App() {
   const [historyJob, setHistoryJob] = useState(null);
   const [capabilities, setCapabilities] = useState({ analysts: [], data_steps: [] });
   const [capabilitiesError, setCapabilitiesError] = useState("");
+  const [scanJob, setScanJob] = useState(null);
 
   const analysisActive = Boolean(job && ["queued", "running"].includes(job.status));
+  const scanActive = Boolean(scanJob && ["queued", "running"].includes(scanJob.status));
 
   const activeModel = useMemo(() => status.active_model || status.models?.[0]?.name || "Modèle non détecté", [status]);
 
@@ -1049,6 +1061,12 @@ export default function App() {
       })
       .finally(() => setLoadingHistoryId(null));
   }, []);
+
+  useEffect(() => {
+    if (page !== "settings" || !analysisActive) return undefined;
+    const timer = window.setInterval(loadStatus, 2500);
+    return () => window.clearInterval(timer);
+  }, [page, analysisActive]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -1109,10 +1127,11 @@ export default function App() {
   return (
     <div className="app-shell">
       <Topbar onMenu={() => setMenuOpen(true)} online={status.online} model={activeModel} />
-      <Sidebar page={page} onPage={navigate} online={status.online} model={activeModel} analysisActive={analysisActive} open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <Sidebar page={page} onPage={navigate} online={status.online} model={activeModel} provider={status.provider_name || "LLM"} analysisActive={analysisActive} scanActive={scanActive} open={menuOpen} onClose={() => setMenuOpen(false)} />
       {menuOpen ? <button className="menu-scrim" onClick={() => setMenuOpen(false)} aria-label="Fermer le menu" /> : null}
       <div className="content-shell">
         {page === "analysis" ? <AnalysisPage form={form} setForm={setForm} job={job} online={status.online} analysts={capabilities.analysts} dataSteps={capabilities.data_steps} analystsError={capabilitiesError} pollWarning={pollWarning} onSubmit={submit} onReset={reset} /> : null}
+        {page === "scanner" ? <ScannerPage online={status.online} job={scanJob} setJob={setScanJob} onOpenAnalysis={(analysisJobId) => openHistory({ id: analysisJobId })} /> : null}
         {page === "history" ? <HistoryPage history={history} loadingId={loadingHistoryId} error={historyError} onSelect={openHistory} /> : null}
         {page === "history-detail" && historyJob ? <ResultPage key={historyJob.id} job={historyJob} historical onBackHistory={() => navigate("history")} /> : null}
         {page === "models" ? <ModelsPage status={status} refresh={loadStatus} /> : null}

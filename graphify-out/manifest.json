@@ -48,10 +48,10 @@
     "semantic_hash": "cdaae9e6c6601e32c80b178189e79514"
   },
   "pyproject.toml": {
-    "mtime": 1787564430.650687,
-    "seen": 1787658861.300436,
-    "ast_hash": "86ceff048a2630a7fe5037d5c954b0b9",
-    "semantic_hash": "86ceff048a2630a7fe5037d5c954b0b9"
+    "mtime": 1787752132.7012942,
+    "seen": 1787752283.500855,
+    "ast_hash": "b8efe17fb59f093f2ba1e25c12969860",
+    "semantic_hash": ""
   },
   "scripts/smoke_structured_output.py": {
     "mtime": 1787564430.6513324,
@@ -840,16 +840,16 @@
     "semantic_hash": "ee93e32562c90924407f97a12e33be4b"
   },
   "web_ui/server.py": {
-    "mtime": 1787644095.9497826,
-    "seen": 1787658861.300517,
-    "ast_hash": "478f4a74fca8994fd8a79a46d0aee4e3",
-    "semantic_hash": "478f4a74fca8994fd8a79a46d0aee4e3"
+    "mtime": 1787740993.7648845,
+    "seen": 1787741118.044868,
+    "ast_hash": "f077ebf6d896f015d3bc18f1d16ecc73",
+    "semantic_hash": ""
   },
   "web_ui/src/App.jsx": {
-    "mtime": 1787644319.1121442,
-    "seen": 1787658861.3005178,
-    "ast_hash": "bd8224e48bd14aaa544934ebee0d48b6",
-    "semantic_hash": "bd8224e48bd14aaa544934ebee0d48b6"
+    "mtime": 1787741092.113493,
+    "seen": 1787741118.04487,
+    "ast_hash": "bd7b0b75dd2537dce6cdad84a16618ad",
+    "semantic_hash": ""
   },
   "web_ui/src/jobPolling.js": {
     "mtime": 1787607498.635119,
@@ -876,10 +876,10 @@
     "semantic_hash": "99ad0c91a4f2626435796ff105f48da5"
   },
   "web_ui/tests/test_reliability.py": {
-    "mtime": 1787644256.6026592,
-    "seen": 1787658861.300521,
-    "ast_hash": "5eeb82985d70d4488984c87cfbbf6df8",
-    "semantic_hash": "5eeb82985d70d4488984c87cfbbf6df8"
+    "mtime": 1787741078.0641463,
+    "seen": 1787741118.044874,
+    "ast_hash": "aaae76dd71b297433784b4a99f372af2",
+    "semantic_hash": ""
   },
   "web_ui/vite.config.js": {
     "mtime": 1787595184.14553,
@@ -994,5 +994,23 @@
     "seen": 1787658861.3005319,
     "ast_hash": "f07a05b4be1cbdad01a24caf37e030b1",
     "semantic_hash": "f07a05b4be1cbdad01a24caf37e030b1"
+  },
+  ".codex/hooks.json": {
+    "mtime": 1787658820.708931,
+    "seen": 1787739504.37812,
+    "ast_hash": "cfa7c36b64ec4effed0d07be83d8337f",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1787658940.369726,
+    "seen": 1787739504.378249,
+    "ast_hash": "dc4e9555b7605e0aa0f207783ee28a86",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260826_084639_cela_d\u00e9pend_si_trading_agent_permet_de_modifier_la.md": {
+    "mtime": 1787733999.4612198,
+    "seen": 1787739504.3782551,
+    "ast_hash": "2912ee33eb4ffcb6ae051b87aaf8f37f",
+    "semantic_hash": ""
   }
 }

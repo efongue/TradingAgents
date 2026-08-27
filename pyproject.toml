@@ -39,6 +39,11 @@ dev = [
     "pytest>=8.0",
     "pytest-subtests>=0.13",
 ]
+# Optional document-to-Markdown conversion for LLM ingestion. Install with
+# `pip install "tradingagents[documents]"` or `uv sync --extra documents`.
+documents = [
+    "markitdown[pdf]>=0.1.6",
+]
 # Amazon Bedrock support (AWS SigV4 auth + boto3). Optional so the core install
 # stays lean: pip install "tradingagents[bedrock]".
 bedrock = [

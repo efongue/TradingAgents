@@ -40,7 +40,7 @@ Latest trading row used: 2026-08-21
 
 OLLAMA_RUNTIME = {
     "context_window_tokens": 4096,
-    "context_source": "Contexte du modèle actuellement chargé dans Ollama",
+    "context_source": "Capacité annoncée par la passerelle",
     "model_capacity_tokens": 40960,
 }
 
@@ -149,7 +149,11 @@ class ReliabilityTests(TestCase):
         self.assertEqual(graph.deep_thinking_llm.max_tokens, 1000)
 
     def test_context_usage_exposes_prompt_output_and_limit(self):
-        limits = analysis_limits(depth=3, analyst_count=4, runtime=OLLAMA_RUNTIME)
+        limits = {
+            **analysis_limits(depth=3, analyst_count=4),
+            **OLLAMA_RUNTIME,
+            "max_output_tokens": 1600,
+        }
 
         usage = context_usage(limits, prompt_tokens=4007)
 
@@ -158,38 +162,44 @@ class ReliabilityTests(TestCase):
         self.assertEqual(usage["estimated_request_tokens"], 5607)
         self.assertEqual(usage["state"], "critical")
 
-    def test_ollama_context_is_read_from_the_running_model(self):
-        def fake_ollama(path, payload=None, timeout=3):
-            if path == "/api/tags":
-                return {"models": [{"name": server.MODEL, "size": 8_000_000_000}]}
-            if path == "/api/ps":
-                return {"models": [{"name": server.MODEL, "context_length": 32768}]}
-            if path == "/api/show":
-                return {"model_info": {"qwen3.context_length": 40960}}
-            return {}
+    def test_runtime_reads_the_configured_gateway_model(self):
+        payload = {"data": [{
+            "id": server.MODEL,
+            "max_input_tokens": 272000,
+            "max_output_tokens": 128000,
+            "capabilities": {"tool_calling": True, "reasoning": True},
+        }]}
 
-        with patch.object(server, "ollama_json", side_effect=fake_ollama):
-            runtime = server.ollama_runtime_info()
+        with patch.object(server, "llm_json", return_value=payload):
+            runtime = server.llm_runtime_info()
 
-        self.assertEqual(runtime["context_window_tokens"], 32768)
-        self.assertEqual(runtime["model_capacity_tokens"], 40960)
-        self.assertIn("actuellement chargé", runtime["context_source"])
+        self.assertTrue(runtime["online"])
+        self.assertEqual(runtime["active_model"], server.MODEL)
+        self.assertEqual(runtime["capabilities"]["max_input_tokens"], 272000)
+        self.assertEqual(runtime["capabilities"]["max_output_tokens"], 128000)
+        self.assertTrue(runtime["capabilities"]["tool_calling"])
 
-    def test_model_capacity_is_not_reported_as_an_active_context(self):
-        def fake_ollama(path, payload=None, timeout=3):
-            if path == "/api/tags":
-                return {"models": [{"name": server.MODEL, "size": 8_000_000_000}]}
-            if path == "/api/ps":
-                return {"models": []}
-            if path == "/api/show":
-                return {"model_info": {"qwen3.context_length": 40960}}
-            return {}
+    def test_runtime_is_offline_when_the_configured_model_is_missing(self):
+        with patch.object(server, "llm_json", return_value={"data": []}):
+            runtime = server.llm_runtime_info()
 
-        with patch.object(server, "ollama_json", side_effect=fake_ollama):
-            runtime = server.ollama_runtime_info()
+        self.assertFalse(runtime["online"])
+        self.assertIsNone(runtime["capabilities"]["max_input_tokens"])
 
-        self.assertIsNone(runtime["context_window_tokens"])
-        self.assertEqual(runtime["model_capacity_tokens"], 40960)
+    def test_model_capacity_is_not_presented_as_an_active_window(self):
+        runtime = {"capabilities": {"max_input_tokens": 272000}}
+
+        limits = analysis_limits(1, 1, runtime)
+
+        self.assertIsNone(limits["context_window_tokens"])
+        self.assertEqual(limits["model_capacity_tokens"], 272000)
+
+    def test_web_config_preserves_env_selected_provider(self):
+        config = web_analysis_config(1)
+
+        self.assertEqual(config["llm_provider"], server.DEFAULT_CONFIG["llm_provider"])
+        self.assertEqual(config["backend_url"], server.DEFAULT_CONFIG["backend_url"])
+        self.assertEqual(config["quick_think_llm"], server.DEFAULT_CONFIG["quick_think_llm"])
 
     def test_effective_parameters_expose_sources_news_memory_and_resume(self):
         config = web_analysis_config(3)
@@ -331,15 +341,20 @@ class ReliabilityTests(TestCase):
             finally:
                 server.JOBS.pop(job_id, None)
 
-    def test_ollama_500_under_context_pressure_gets_clear_diagnostic(self):
-        job = {"limits": context_usage(analysis_limits(3, 4, OLLAMA_RUNTIME), 4007)}
+    def test_gateway_500_under_context_pressure_gets_clear_diagnostic(self):
+        limits = {
+            **analysis_limits(3, 4),
+            **OLLAMA_RUNTIME,
+            "max_output_tokens": 1600,
+        }
+        job = {"limits": context_usage(limits, 4007)}
 
         failure = describe_analysis_error(RuntimeError("Error code: 500 - Internal Server Error"), job)
 
         self.assertEqual(failure["code"], "context_limit")
         self.assertIn("4 007 tokens", failure["message"])
         self.assertIn("4 096", failure["message"])
-        self.assertIn("OLLAMA_NUM_CTX", failure["recommendation"])
+        self.assertIn("Réduisez la profondeur", failure["recommendation"])
 
     def test_generic_error_is_not_mislabeled_as_context_limit(self):
         job = {"limits": analysis_limits(1, 1, OLLAMA_RUNTIME)}

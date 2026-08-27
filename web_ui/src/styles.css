@@ -370,6 +370,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .setting-row span { display: grid; gap: 4px; }
 .setting-row small { color: var(--muted); }
 .setting-row code { max-width: 48%; border: 1px solid var(--line); padding: 6px 9px; color: var(--mint); background: #07131d; overflow-wrap: anywhere; text-align: right; }
+.settings-title { margin: 28px 0 10px; font-size: 16px; }
+.settings-empty { padding: 24px; color: var(--muted); }
 
 .mobile-topbar, .mobile-close, .menu-scrim { display: none; }
 .icon-button { width: 40px; height: 40px; place-items: center; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #0a1722; cursor: pointer; }

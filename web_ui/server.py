@@ -46,11 +46,19 @@ from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
 from tradingagents.graph.analyst_execution import ANALYST_NODE_SPECS  # noqa: E402
 from tradingagents.graph.checkpointer import checkpoint_step  # noqa: E402
 from tradingagents.graph.trading_graph import TradingAgentsGraph  # noqa: E402
+from web_ui.screener import (  # noqa: E402
+    DECISION_SCORES,
+    combine_with_agent_score,
+    resolve_symbols,
+    screen_universe,
+    universe_catalog,
+)
 
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("TRADINGAGENTS_WEB_PORT", "8787"))
-OLLAMA_API = os.environ.get("OLLAMA_API", "http://127.0.0.1:11434").rstrip("/")
-MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:8b")
+LLM_PROVIDER = DEFAULT_CONFIG["llm_provider"]
+LLM_ENDPOINT = str(DEFAULT_CONFIG.get("backend_url") or "").rstrip("/")
+MODEL = DEFAULT_CONFIG["quick_think_llm"]
 WEB_TEMPERATURE = float(os.environ.get("TRADINGAGENTS_TEMPERATURE", "0.1"))
 OUTPUT_TOKEN_BUDGETS = {1: 600, 2: 1000, 3: 1600}
 
@@ -109,6 +117,7 @@ VENDOR_LABELS = {
 }
 
 JOBS: dict[str, dict] = {}
+SCAN_JOBS: dict[str, dict] = {}
 LOCK = threading.RLock()
 
 STAGE_DEFS = [
@@ -300,13 +309,11 @@ def elapsed(started_at: float | None) -> str:
     return f"{seconds // 60:02d}:{seconds % 60:02d}"
 
 
-def ollama_json(path: str, payload: dict | None = None, timeout: float = 3) -> dict:
-    body = json.dumps(payload).encode() if payload is not None else None
+def llm_json(path: str, timeout: float = 3) -> dict:
+    api_key = os.getenv("OPENAI_COMPATIBLE_API_KEY") or os.getenv("OPENAI_API_KEY") or "EMPTY"
     request = urllib.request.Request(
-        f"{OLLAMA_API}{path}",
-        data=body,
-        headers={"Content-Type": "application/json"} if body else {},
-        method="POST" if body else "GET",
+        f"{LLM_ENDPOINT}{path}",
+        headers={"Authorization": f"Bearer {api_key}"},
     )
     with urllib.request.urlopen(request, timeout=timeout) as response:
         parsed = json.loads(response.read())
@@ -321,78 +328,81 @@ def positive_int(value) -> int | None:  # noqa: ANN001
     return parsed if parsed > 0 else None
 
 
-def context_from_model_details(details: dict) -> tuple[int | None, str | None, int | None]:
-    parameters = str(details.get("parameters") or "")
-    configured_match = re.search(r"(?m)^\s*num_ctx\s+(\d+)\s*$", parameters)
-    configured = positive_int(configured_match.group(1)) if configured_match else None
-    capacities = [
-        positive_int(value)
-        for key, value in (details.get("model_info") or {}).items()
-        if str(key).endswith(".context_length")
-    ]
-    capacity = max((value for value in capacities if value), default=None)
-    if configured:
-        return configured, "Paramètre num_ctx du modèle Ollama", capacity
-    return None, None, capacity
-
-
-def ollama_runtime_info() -> dict:
+def llm_runtime_info() -> dict:
+    configured_retries = DEFAULT_CONFIG.get("llm_max_retries")
     base = {
         "online": False,
         "models": [],
-        "endpoint": OLLAMA_API,
-        "openai_endpoint": f"{OLLAMA_API}/v1",
+        "provider": LLM_PROVIDER,
+        "provider_name": "OmniRoute" if ":20128" in LLM_ENDPOINT else LLM_PROVIDER,
+        "endpoint": LLM_ENDPOINT,
+        "openai_endpoint": LLM_ENDPOINT,
         "active_model": MODEL,
-        "context_window_tokens": None,
-        "context_source": None,
-        "model_capacity_tokens": None,
-        "configuration": {
+        "capabilities": {
+            "max_input_tokens": None,
+            "max_output_tokens": None,
+            "tool_calling": None,
+            "reasoning": None,
+        },
+        "tradingagents": {
+            "provider": LLM_PROVIDER,
+            "endpoint": LLM_ENDPOINT,
+            "quick_model": DEFAULT_CONFIG["quick_think_llm"],
+            "deep_model": DEFAULT_CONFIG["deep_think_llm"],
             "temperature": WEB_TEMPERATURE,
-            "think_enabled": False,
-            "max_retries_per_call": DEFAULT_MAX_RETRIES,
+            "max_retries_per_call": DEFAULT_MAX_RETRIES if configured_retries in {None, ""} else int(configured_retries),
             "checkpoint_enabled": True,
+            "output_language": "French",
             "price_consistency_check": True,
             "output_token_budgets": OUTPUT_TOKEN_BUDGETS,
         },
+        "analysis": None,
     }
+    if not LLM_ENDPOINT:
+        return base
     try:
-        tags = ollama_json("/api/tags")
+        response = llm_json("/models")
     except (OSError, urllib.error.URLError, json.JSONDecodeError):
         return base
 
-    models = []
-    for item in tags.get("models", []):
-        size = item.get("size") or 0
-        models.append({"name": item.get("name", "inconnu"), "size": f"{size / 1_000_000_000:.1f} Go"})
-    base.update({"online": True, "models": models})
-
-    try:
-        running = ollama_json("/api/ps", timeout=2).get("models", [])
-    except (OSError, urllib.error.URLError, json.JSONDecodeError):
-        running = []
-    active = next(
-        (
-            item for item in running
-            if item.get("name") == MODEL or item.get("model") == MODEL
-        ),
-        None,
-    )
+    active = next((item for item in response.get("data", []) if item.get("id") == MODEL), None)
     if active:
-        runtime_context = positive_int(active.get("context_length"))
-        if runtime_context:
-            base["context_window_tokens"] = runtime_context
-            base["context_source"] = "Contexte du modèle actuellement chargé dans Ollama"
-
-    try:
-        details = ollama_json("/api/show", {"model": MODEL}, timeout=3)
-    except (OSError, urllib.error.URLError, json.JSONDecodeError):
-        details = {}
-    detected_context, detected_source, capacity = context_from_model_details(details)
-    base["model_capacity_tokens"] = capacity
-    if base["context_window_tokens"] is None and detected_context:
-        base["context_window_tokens"] = detected_context
-        base["context_source"] = detected_source
+        max_input = positive_int(active.get("max_input_tokens") or active.get("context_length"))
+        max_output = positive_int(active.get("max_output_tokens"))
+        capabilities = active.get("capabilities") or {}
+        base.update({
+            "online": True,
+            "models": [{"name": MODEL, "provider": active.get("owned_by") or LLM_PROVIDER}],
+        })
+        base["capabilities"].update({
+            "max_input_tokens": max_input,
+            "max_output_tokens": max_output,
+            "tool_calling": capabilities.get("tool_calling"),
+            "reasoning": capabilities.get("reasoning"),
+        })
     return base
+
+
+def current_analysis_config() -> dict | None:
+    with LOCK:
+        job = next(
+            (job for job in JOBS.values() if job.get("status") in {"queued", "running"}),
+            None,
+        )
+        if not job:
+            return None
+        depth = int(job["depth"])
+        return {
+            "ticker": job["ticker"],
+            "analysis_date": job["analysis_date"],
+            "status": job["status"],
+            "depth": depth,
+            "analysts": list(job["analysts"]),
+            "debate_rounds": depth,
+            "risk_rounds": depth,
+            "output_tokens_per_call": OUTPUT_TOKEN_BUDGETS[depth],
+            "estimated_model_calls": (job.get("limits") or {}).get("expected_model_calls"),
+        }
 
 
 def analysis_limits(depth: int, analyst_count: int, runtime: dict | None = None) -> dict:
@@ -400,13 +410,14 @@ def analysis_limits(depth: int, analyst_count: int, runtime: dict | None = None)
     output_budget = OUTPUT_TOKEN_BUDGETS[depth]
     expected_calls = analyst_count * 2 + 9 + max(0, depth - 1) * 5
     runtime = runtime or {}
-    context_window = positive_int(runtime.get("context_window_tokens"))
+    model_capacity = positive_int((runtime.get("capabilities") or {}).get("max_input_tokens"))
     return {
-        "context_window_tokens": context_window,
-        "context_source": runtime.get("context_source"),
-        "model_capacity_tokens": positive_int(runtime.get("model_capacity_tokens")),
+        # OmniRoute exposes model capacity, not a per-request active window.
+        "context_window_tokens": None,
+        "context_source": None,
+        "model_capacity_tokens": model_capacity,
         "max_output_tokens": output_budget,
-        "safe_prompt_tokens": max(0, context_window - output_budget) if context_window else None,
+        "safe_prompt_tokens": None,
         "expected_model_calls": expected_calls,
         "last_prompt_estimated_tokens": None,
         "estimated_request_tokens": None,
@@ -419,10 +430,6 @@ def web_analysis_config(depth: int) -> dict:
     """Return the exact TradingAgents configuration used by the web runner."""
     config = DEFAULT_CONFIG.copy()
     config.update({
-        "llm_provider": "ollama",
-        "backend_url": f"{OLLAMA_API}/v1",
-        "quick_think_llm": MODEL,
-        "deep_think_llm": MODEL,
         "max_debate_rounds": depth,
         "max_risk_discuss_rounds": depth,
         "output_language": "French",
@@ -685,7 +692,7 @@ def describe_analysis_error(exc: Exception, job: dict) -> dict:
 
     if any(marker in lower for marker in context_markers) or ("500" in lower and context_pressure):
         prompt_copy = f"environ {format_token_count(prompt_tokens)} tokens" if prompt_tokens else "presque toute la fenêtre disponible"
-        window_copy = f"la fenêtre détectée de {format_token_count(window)} tokens" if window else "la fenêtre communiquée par Ollama"
+        window_copy = f"la fenêtre détectée de {format_token_count(window)} tokens" if window else "la fenêtre communiquée par la passerelle"
         return {
             "code": "context_limit",
             "title": "Limite de contexte du modèle atteinte",
@@ -693,17 +700,17 @@ def describe_analysis_error(exc: Exception, job: dict) -> dict:
                 f"Le dernier prompt utilisait {prompt_copy}. Avec la réponse demandée, "
                 f"{window_copy} n’était plus suffisante."
             ),
-            "recommendation": "Réduisez la profondeur ou le nombre d’analystes, ou augmentez OLLAMA_NUM_CTX avant de relancer.",
+            "recommendation": "Réduisez la profondeur ou le nombre d’analystes avant de relancer.",
             "technical": technical,
             "context": limits,
         }
 
     if any(marker in lower for marker in ("connection refused", "connecterror", "connection error", "timed out", "timeout")):
         return {
-            "code": "ollama_unavailable",
-            "title": "Connexion à Ollama interrompue",
-            "message": "Le modèle local ne répondait plus pendant la génération.",
-            "recommendation": "Vérifiez qu’Ollama est ouvert, puis relancez l’analyse.",
+            "code": "llm_unavailable",
+            "title": "Connexion à la passerelle IA interrompue",
+            "message": "Le modèle ne répondait plus pendant la génération.",
+            "recommendation": "Vérifiez qu’OmniRoute est actif, puis relancez l’analyse.",
             "technical": technical,
             "context": limits,
         }
@@ -1063,6 +1070,68 @@ def public_job(job: dict) -> dict:
     return result
 
 
+def new_analysis_job(
+    ticker: str,
+    analysis_date: str,
+    analysts: list[str],
+    depth: int,
+    runtime: dict | None = None,
+    *,
+    parent_scan_id: str | None = None,
+) -> tuple[str, dict]:
+    """Build the canonical job shape shared by manual and scanner analyses."""
+    job_id = str(uuid.uuid4())
+    job = {
+        "id": job_id,
+        "ticker": ticker,
+        "analysis_date": analysis_date,
+        "model": MODEL,
+        "analysts": analysts,
+        "depth": depth,
+        "status": "queued",
+        "created_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "started_at": None,
+        "stages": stages(0),
+        "data_steps": data_steps(0),
+        "stage_steps": workflow_stage_steps(job_id, analysts),
+        "logs": ["Analyse placée dans la file locale."],
+        "llm_calls": 0,
+        "tool_calls": 0,
+        "llm_errors": 0,
+        "source_events": [],
+        "reliability": {},
+        "limits": analysis_limits(depth, len(analysts), runtime),
+        "result": None,
+        "error": None,
+    }
+    if parent_scan_id:
+        job["parent_scan_id"] = parent_scan_id
+    return job_id, job
+
+
+def active_work_exists() -> bool:
+    """Whether one manual analysis or market scan currently owns the runner."""
+    return any(job.get("status") in {"queued", "running"} for job in JOBS.values()) or any(
+        job.get("status") in {"queued", "running"} for job in SCAN_JOBS.values()
+    )
+
+
+def update_scan(job_id: str, **changes) -> None:
+    with LOCK:
+        SCAN_JOBS[job_id].update(changes)
+
+
+def public_scan(job: dict) -> dict:
+    """Return a JSON-safe scan snapshot plus the active child analysis state."""
+    result = dict(job)
+    result.pop("started_at", None)
+    result["elapsed"] = elapsed(job.get("started_at"))
+    active_job_id = job.get("active_analysis_job_id")
+    active_job = JOBS.get(active_job_id) if active_job_id else None
+    result["active_analysis"] = public_job(active_job) if active_job else None
+    return result
+
+
 def update_job(job_id: str, **changes) -> None:
     with LOCK:
         JOBS[job_id].update(changes)
@@ -1120,14 +1189,14 @@ class ProgressCallback(BaseCallbackHandler):
             record_graph_node_error(self.job_id, node_name, error)
 
     def on_llm_start(self, serialized, prompts, **kwargs):  # noqa: ANN001
-        self._advance("Un agent local prépare sa réponse.", prompts)
+        self._advance("Un agent IA prépare sa réponse.", prompts)
 
     def on_chat_model_start(self, serialized, messages, **kwargs):  # noqa: ANN001
         prompts = [
             "\n".join(str(getattr(message, "content", message)) for message in batch)
             for batch in messages
         ]
-        self._advance("Un agent local prépare sa réponse.", prompts)
+        self._advance("Un agent IA prépare sa réponse.", prompts)
 
     def on_llm_error(self, error, **kwargs):  # noqa: ANN001
         with LOCK:
@@ -1135,24 +1204,7 @@ class ProgressCallback(BaseCallbackHandler):
             job["llm_errors"] = job.get("llm_errors", 0) + 1
 
     def on_llm_end(self, response, **kwargs):  # noqa: ANN001
-        with LOCK:
-            needs_runtime_context = not JOBS[self.job_id].get("limits", {}).get("context_window_tokens")
-        if not needs_runtime_context:
-            return
-        runtime = ollama_runtime_info()
-        runtime_context = runtime.get("context_window_tokens")
-        if not runtime_context:
-            return
-        with LOCK:
-            job = JOBS[self.job_id]
-            limits = dict(job.get("limits") or {})
-            limits.update({
-                "context_window_tokens": runtime_context,
-                "context_source": runtime.get("context_source"),
-                "model_capacity_tokens": runtime.get("model_capacity_tokens"),
-                "safe_prompt_tokens": max(0, runtime_context - int(limits["max_output_tokens"])),
-            })
-            job["limits"] = context_usage(limits, limits.get("last_prompt_estimated_tokens"))
+        return
 
     def on_tool_start(self, serialized, input_str, **kwargs):  # noqa: ANN001
         serialized = serialized or {}
@@ -1340,8 +1392,163 @@ def run_analysis(job_id: str, payload: dict) -> None:
         update_job(job_id, status="error", error=failure["message"], failure=failure, stages=stages(active, error=True), data_steps=failed_data_steps, logs=[failure["title"]])
 
 
-def ollama_status() -> dict:
-    return ollama_runtime_info()
+def run_scan(scan_id: str, payload: dict) -> None:
+    """Prefilter one universe, run TradingAgents sequentially, then re-rank."""
+    symbols = payload["symbols"]
+    analysis_date = payload["date"]
+    prefilter_limit = payload["prefilter_limit"]
+    analysis_limit = payload["analysis_limit"]
+    analysts = payload["analysts"]
+    depth = payload["depth"]
+
+    try:
+        update_scan(
+            scan_id,
+            status="running",
+            stage="screening",
+            stage_label="Préfiltrage quantitatif",
+            started_at=time.time(),
+            logs=["Chargement des historiques OHLCV de l’univers."],
+        )
+
+        def record_screen_progress(completed: int, total: int, symbol: str, success: bool) -> None:
+            update_scan(
+                scan_id,
+                screen_progress={"completed": completed, "total": total},
+                logs=[
+                    f"{symbol} : {'score calculé' if success else 'données indisponibles'} "
+                    f"({completed}/{total})."
+                ],
+            )
+
+        screened, data_errors = screen_universe(
+            symbols,
+            analysis_date,
+            progress=record_screen_progress,
+        )
+        candidates = [dict(candidate) for candidate in screened[:prefilter_limit]]
+        if not candidates:
+            raise ValueError("Aucun titre de l’univers ne dispose de données suffisantes")
+
+        target_count = min(analysis_limit, len(candidates))
+        for index, candidate in enumerate(candidates):
+            candidate["analysis_status"] = "queued" if index < target_count else "prefiltered"
+
+        update_scan(
+            scan_id,
+            stage="analysis",
+            stage_label="Analyses TradingAgents",
+            candidates=candidates,
+            data_errors=data_errors,
+            analysis_progress={"completed": 0, "total": target_count},
+            logs=[f"{len(screened)} titres classés ; {target_count} transmis aux agents."],
+        )
+
+        runtime = llm_runtime_info()
+        for index in range(target_count):
+            candidate = candidates[index]
+            ticker = candidate["symbol"]
+            child_id, child_job = new_analysis_job(
+                ticker,
+                analysis_date,
+                analysts,
+                depth,
+                runtime,
+                parent_scan_id=scan_id,
+            )
+            with LOCK:
+                JOBS[child_id] = child_job
+            candidate.update({"analysis_status": "running", "analysis_job_id": child_id})
+            update_scan(
+                scan_id,
+                active_symbol=ticker,
+                active_analysis_job_id=child_id,
+                candidates=candidates,
+                logs=[f"TradingAgents analyse {ticker} ({index + 1}/{target_count})."],
+            )
+
+            run_analysis(
+                child_id,
+                {"ticker": ticker, "date": analysis_date, "analysts": analysts, "depth": depth},
+            )
+            with LOCK:
+                completed_job = dict(JOBS[child_id])
+
+            if completed_job.get("status") == "complete":
+                result = completed_job.get("result") or {}
+                reliability = result.get("reliability") or {}
+                raw_decision = str(result.get("raw_decision") or "HOLD").upper()
+                blocked = bool(reliability.get("blocked", True))
+                candidate.update({
+                    "analysis_status": "blocked" if blocked else "complete",
+                    "raw_decision": raw_decision,
+                    "display_decision": result.get("display_decision") or raw_decision,
+                    "confidence": result.get("confidence"),
+                    "blocked": blocked,
+                    "agent_score": DECISION_SCORES.get(raw_decision),
+                    "final_score": combine_with_agent_score(
+                        candidate["prefilter_score"], raw_decision, blocked=blocked,
+                    ),
+                })
+            else:
+                candidate.update({
+                    "analysis_status": "error",
+                    "analysis_error": completed_job.get("error") or "Analyse interrompue",
+                    "blocked": True,
+                    "final_score": None,
+                })
+
+            update_scan(
+                scan_id,
+                candidates=candidates,
+                analysis_progress={"completed": index + 1, "total": target_count},
+                logs=[f"Analyse de {ticker} terminée ({index + 1}/{target_count})."],
+            )
+
+        final_ranking = sorted(
+            [candidate for candidate in candidates if candidate["analysis_status"] in {"complete", "blocked"}],
+            key=lambda item: (
+                item.get("final_score") is None,
+                -(item.get("final_score") or 0),
+                item["symbol"],
+            ),
+        )
+        rank = 1
+        for candidate in final_ranking:
+            if candidate.get("final_score") is not None:
+                candidate["final_rank"] = rank
+                rank += 1
+            else:
+                candidate["final_rank"] = None
+
+        update_scan(
+            scan_id,
+            status="complete",
+            stage="complete",
+            stage_label="Classement terminé",
+            active_symbol=None,
+            active_analysis_job_id=None,
+            candidates=candidates,
+            ranking=final_ranking,
+            logs=["Préfiltrage et analyses terminés."],
+        )
+    except Exception as exc:  # noqa: BLE001
+        update_scan(
+            scan_id,
+            status="error",
+            stage="error",
+            stage_label="Scanner interrompu",
+            active_symbol=None,
+            active_analysis_job_id=None,
+            error=str(exc) or type(exc).__name__,
+            logs=["Le scanner s’est arrêté avant le classement final."],
+        )
+
+
+def llm_status() -> dict:
+    status = llm_runtime_info()
+    status["analysis"] = current_analysis_config()
+    return status
 
 
 def tradingagents_capabilities() -> dict:
@@ -1383,8 +1590,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/capabilities":
             self.send_json(tradingagents_capabilities())
             return
+        if path == "/api/scanner/universes":
+            self.send_json({
+                "universes": universe_catalog(),
+                "defaults": {"universe": "us-large", "prefilter_limit": 8, "analysis_limit": 3},
+            })
+            return
         if path == "/api/status":
-            self.send_json(ollama_status())
+            self.send_json(llm_status())
             return
         if path == "/api/history":
             items = load_history_items()
@@ -1407,6 +1620,16 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(payload)
             else:
                 self.send_json({"error": "Analyse introuvable"}, HTTPStatus.NOT_FOUND)
+            return
+        scan_match = re.fullmatch(r"/api/scans/([a-f0-9-]+)", path)
+        if scan_match:
+            with LOCK:
+                scan = SCAN_JOBS.get(scan_match.group(1))
+                payload = public_scan(scan) if scan else None
+            if payload:
+                self.send_json(payload)
+            else:
+                self.send_json({"error": "Scan introuvable"}, HTTPStatus.NOT_FOUND)
             return
         section_match = re.fullmatch(
             r"/api/jobs/([a-f0-9-]+)/reports/([a-z_]+)\.md",
@@ -1448,12 +1671,81 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):  # noqa: N802
         path = urlparse(self.path).path
-        if path != "/api/analyze":
+        if path not in {"/api/analyze", "/api/scans"}:
             self.send_json({"error": "Route inconnue"}, HTTPStatus.NOT_FOUND)
             return
         try:
             length = min(int(self.headers.get("Content-Length", "0")), 1_000_000)
             payload = json.loads(self.rfile.read(length))
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+
+        if path == "/api/scans":
+            try:
+                universe_id = str(payload.get("universe", "us-large"))
+                symbols = resolve_symbols(universe_id, payload.get("symbols"))
+                analysis_date = str(payload.get("date", ""))
+                parsed_date = date.fromisoformat(analysis_date)
+                if parsed_date > date.today():
+                    raise ValueError("La date ne peut pas être dans le futur")
+                prefilter_limit = int(payload.get("prefilter_limit", 8))
+                analysis_limit = int(payload.get("analysis_limit", 3))
+                if not 1 <= prefilter_limit <= 20:
+                    raise ValueError("Le préfiltre doit conserver entre 1 et 20 titres")
+                if not 1 <= analysis_limit <= min(5, prefilter_limit):
+                    raise ValueError("TradingAgents peut analyser entre 1 et 5 titres du préfiltre")
+            except (ValueError, TypeError) as exc:
+                self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+                return
+
+            analysts = list(ANALYST_NODE_SPECS)
+            depth = 1
+            catalog = {item["id"]: item for item in universe_catalog()}
+            with LOCK:
+                if active_work_exists():
+                    self.send_json({"error": "Une analyse ou un scan est déjà en cours"}, HTTPStatus.CONFLICT)
+                    return
+                scan_id = str(uuid.uuid4())
+                scan = {
+                    "id": scan_id,
+                    "universe": universe_id,
+                    "universe_label": catalog[universe_id]["label"],
+                    "symbols": symbols,
+                    "analysis_date": analysis_date,
+                    "prefilter_limit": prefilter_limit,
+                    "analysis_limit": analysis_limit,
+                    "analysts": analysts,
+                    "depth": depth,
+                    "status": "queued",
+                    "stage": "queued",
+                    "stage_label": "Scan en attente",
+                    "created_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                    "started_at": None,
+                    "screen_progress": {"completed": 0, "total": len(symbols)},
+                    "analysis_progress": {"completed": 0, "total": analysis_limit},
+                    "active_symbol": None,
+                    "active_analysis_job_id": None,
+                    "candidates": [],
+                    "ranking": [],
+                    "data_errors": [],
+                    "logs": ["Scan placé dans la file locale."],
+                    "error": None,
+                }
+                SCAN_JOBS[scan_id] = scan
+            clean_payload = {
+                "symbols": symbols,
+                "date": analysis_date,
+                "prefilter_limit": prefilter_limit,
+                "analysis_limit": analysis_limit,
+                "analysts": analysts,
+                "depth": depth,
+            }
+            threading.Thread(target=run_scan, args=(scan_id, clean_payload), daemon=True).start()
+            self.send_json(public_scan(scan), HTTPStatus.ACCEPTED)
+            return
+
+        try:
             ticker = str(payload.get("ticker", "")).strip().upper()
             analysis_date = str(payload.get("date", ""))
             analysts = [str(item) for item in payload.get("analysts", []) if str(item) in ALLOWED_ANALYSTS]
@@ -1471,35 +1763,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
 
-        runtime = ollama_runtime_info()
+        runtime = llm_runtime_info()
         with LOCK:
-            if any(job.get("status") in {"queued", "running"} for job in JOBS.values()):
-                self.send_json({"error": "Une analyse locale est déjà en cours"}, HTTPStatus.CONFLICT)
+            if active_work_exists():
+                self.send_json({"error": "Une analyse ou un scan est déjà en cours"}, HTTPStatus.CONFLICT)
                 return
-            job_id = str(uuid.uuid4())
-            job = {
-                "id": job_id,
-                "ticker": ticker,
-                "analysis_date": analysis_date,
-                "model": MODEL,
-                "analysts": analysts,
-                "depth": depth,
-                "status": "queued",
-                "created_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "started_at": None,
-                "stages": stages(0),
-                "data_steps": data_steps(0),
-                "stage_steps": workflow_stage_steps(job_id, analysts),
-                "logs": ["Analyse placée dans la file locale."],
-                "llm_calls": 0,
-                "tool_calls": 0,
-                "llm_errors": 0,
-                "source_events": [],
-                "reliability": {},
-                "limits": analysis_limits(depth, len(analysts), runtime),
-                "result": None,
-                "error": None,
-            }
+            job_id, job = new_analysis_job(ticker, analysis_date, analysts, depth, runtime)
             JOBS[job_id] = job
         clean_payload = {"ticker": ticker, "date": analysis_date, "analysts": analysts, "depth": depth}
         threading.Thread(target=run_analysis, args=(job_id, clean_payload), daemon=True).start()
