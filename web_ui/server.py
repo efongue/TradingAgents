@@ -59,7 +59,8 @@ PORT = int(os.environ.get("TRADINGAGENTS_WEB_PORT", "8787"))
 LLM_PROVIDER = DEFAULT_CONFIG["llm_provider"]
 LLM_ENDPOINT = str(DEFAULT_CONFIG.get("backend_url") or "").rstrip("/")
 MODEL = DEFAULT_CONFIG["quick_think_llm"]
-WEB_TEMPERATURE = float(os.environ.get("TRADINGAGENTS_TEMPERATURE", "0.1"))
+_raw_temp = os.environ.get("TRADINGAGENTS_TEMPERATURE")
+WEB_TEMPERATURE = float(_raw_temp) if _raw_temp not in {None, ""} else None
 OUTPUT_TOKEN_BUDGETS = {1: 600, 2: 1000, 3: 1600}
 
 ANALYST_PRESENTATION = {
@@ -433,10 +434,11 @@ def web_analysis_config(depth: int) -> dict:
         "max_debate_rounds": depth,
         "max_risk_discuss_rounds": depth,
         "output_language": "French",
-        "temperature": WEB_TEMPERATURE,
         "checkpoint_enabled": True,
         "results_dir": str(DATA_DIR / "runtime"),
     })
+    if WEB_TEMPERATURE is not None:
+        config["temperature"] = WEB_TEMPERATURE
     return config
 
 

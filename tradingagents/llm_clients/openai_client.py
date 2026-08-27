@@ -196,6 +196,12 @@ def _supports_reasoning_effort(model: str) -> bool:
     return bool(_OPENAI_REASONING_MODEL.match(model.lower().strip()))
 
 
+def _rejects_temperature(model: str) -> bool:
+    """Whether the model is known to reject the temperature parameter (reasoning/codex models)."""
+    m = model.lower().strip()
+    return bool(re.search(r"(?:^|/)(?:o[1-9]|gpt-5|codex|reasoner)", m))
+
+
 @dataclass(frozen=True)
 class ProviderSpec:
     """Declarative config for one OpenAI-compatible provider.
@@ -342,6 +348,8 @@ class OpenAIClient(BaseLLMClient):
             if key not in self.kwargs:
                 continue
             if key == "reasoning_effort" and not _supports_reasoning_effort(self.model):
+                continue
+            if key == "temperature" and (self.kwargs[key] is None or _rejects_temperature(self.model)):
                 continue
             llm_kwargs[key] = self.kwargs[key]
 
