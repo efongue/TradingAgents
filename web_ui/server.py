@@ -123,6 +123,12 @@ def load_scans_cache() -> dict[str, dict]:
         if SCANS_FILE.exists():
             payload = json.loads(SCANS_FILE.read_text(encoding="utf-8"))
             if isinstance(payload, dict):
+                for scan in payload.values():
+                    if scan.get("status") in {"queued", "running"}:
+                        scan["status"] = "error"
+                        scan["stage"] = "interrupted"
+                        scan["stage_label"] = "Scan interrompu"
+                        scan["error"] = "Le serveur Python a été redémarré pendant l'exécution du scan."
                 return payload
     except (OSError, json.JSONDecodeError):
         pass
