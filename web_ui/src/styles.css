@@ -8783,3 +8783,733 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 
+
+/* ==========================================================================
+   7. Terminal Header, Workspace Master-Detail & Execution Layout
+   ========================================================================== */
+
+.terminal-header {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+}
+
+[data-theme="light"] .terminal-header {
+  background: rgba(255, 255, 255, 0.88);
+  border-bottom-color: var(--line);
+  box-shadow: 0 1px 8px rgba(15, 23, 42, 0.04);
+}
+
+.terminal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 520px;
+}
+
+.terminal-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.terminal-brand-group .logo-mark {
+  width: 24px;
+  height: 24px;
+}
+
+.terminal-brand-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.terminal-brand-accent {
+  color: var(--mint);
+}
+
+.terminal-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(45, 212, 191, 0.12);
+  color: var(--mint);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+}
+
+.terminal-search-wrapper {
+  position: relative;
+  flex: 1;
+  max-width: 340px;
+}
+
+.terminal-search-wrapper.focused {
+  max-width: 420px;
+  transition: max-width 200ms ease;
+}
+
+.terminal-search-input-component .stock-search-input-group {
+  height: 34px;
+  background: var(--surface-input);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 160ms ease;
+}
+
+.terminal-search-input-component .stock-search-input-group:focus-within {
+  border-color: var(--mint);
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.18);
+}
+
+.terminal-search-input-component input {
+  font-size: 12.5px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  outline: none;
+  width: 100%;
+}
+
+.terminal-search-icon {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.terminal-search-shortcut {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.terminal-search-shortcut kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+/* Market Pulse */
+.terminal-market-pulse {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  font-size: 11.5px;
+  color: var(--muted);
+  user-select: none;
+}
+
+.pulse-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pulse-dot-live {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--signal-bullish);
+  box-shadow: 0 0 6px var(--signal-bullish);
+  animation: pulse-live 2s infinite;
+}
+
+@keyframes pulse-live {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.pulse-text {
+  font-weight: 550;
+  color: var(--text);
+}
+
+.pulse-sep {
+  color: var(--line);
+}
+
+.pulse-val.positive {
+  color: var(--signal-bullish);
+}
+
+.pulse-val.neutral {
+  color: var(--signal-neutral);
+}
+
+/* Terminal Header Right */
+.terminal-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-model-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.terminal-model-name {
+  color: var(--mint);
+  font-size: 11px;
+}
+
+.terminal-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.terminal-action-btn:hover {
+  background: var(--surface-3);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+.terminal-action-btn.highlight {
+  background: rgba(45, 212, 191, 0.12);
+  color: var(--mint);
+  border-color: rgba(45, 212, 191, 0.35);
+}
+
+.terminal-action-btn.highlight:hover {
+  background: rgba(45, 212, 191, 0.2);
+}
+
+.terminal-action-btn.theme-toggle {
+  padding: 6px;
+  border-radius: var(--radius-sm);
+}
+
+.mobile-menu-btn {
+  display: none;
+}
+
+/* ==========================================================================
+   Workspace Layout (Canvas + Sticky Execution Drawer)
+   ========================================================================== */
+
+.workspace-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 350px;
+  gap: 24px;
+  align-items: start;
+  width: 100%;
+  margin-top: 18px;
+}
+
+.workspace-main {
+  min-width: 0;
+}
+
+.workspace-sidebar {
+  position: sticky;
+  top: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 1180px) {
+  .workspace-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .workspace-sidebar {
+    position: static;
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   Master-Detail Context Drawer (Vivier d'opportunités)
+   ========================================================================== */
+
+.context-drawer {
+  width: 270px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  transition: width 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .context-drawer {
+  background: #ffffff;
+  border-right-color: var(--line);
+  box-shadow: 2px 0 10px rgba(15, 23, 42, 0.03);
+}
+
+.context-drawer.collapsed {
+  width: 36px;
+  background: var(--surface-2);
+}
+
+.context-drawer-expand-btn {
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 4px;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.context-drawer-expand-btn:hover {
+  color: var(--mint);
+}
+
+.collapsed-vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.context-drawer-header {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line-soft);
+  gap: 6px;
+}
+
+.context-drawer-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-2);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-soft);
+}
+
+.context-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.context-tab.active {
+  background: var(--surface);
+  color: var(--mint);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.context-drawer-collapse-btn {
+  padding: 4px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line-soft);
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.context-drawer-collapse-btn:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+
+.context-drawer-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  divide-y: 1px solid var(--line-soft);
+}
+
+.context-ticker-card {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+  user-select: none;
+}
+
+.context-ticker-card:hover {
+  background: var(--surface-2);
+}
+
+.context-ticker-card.selected {
+  background: var(--surface-3);
+  border-left-color: var(--mint);
+}
+
+.ticker-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ticker-symbol-group {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ticker-symbol {
+  font-size: 13.5px;
+  font-weight: 750;
+  color: var(--text);
+}
+
+.ticker-name {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 95px;
+}
+
+.ticker-decision-badge {
+  font-size: 10px;
+  font-weight: 750;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+}
+
+.ticker-decision-badge.positive {
+  background: var(--signal-bullish-bg);
+  color: var(--signal-bullish-text);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.ticker-decision-badge.negative {
+  background: var(--signal-bearish-bg);
+  color: var(--signal-bearish-text);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.ticker-decision-badge.neutral {
+  background: var(--signal-neutral-bg);
+  color: var(--signal-neutral-text);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.ticker-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+}
+
+.ticker-price {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ticker-change.positive { color: var(--signal-bullish); }
+.ticker-change.negative { color: var(--signal-bearish); }
+.ticker-change.neutral { color: var(--muted); }
+
+.ticker-rr {
+  font-size: 10px;
+}
+
+.context-drawer-footer {
+  padding: 10px 12px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--surface-2);
+}
+
+.context-drawer-action-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-gradient);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  color: #030712;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 140ms ease;
+}
+
+.context-drawer-action-btn:hover {
+  opacity: 0.9;
+}
+
+/* ==========================================================================
+   Floating Asynchronous Background Tasks Dock
+   ========================================================================== */
+
+.floating-task-dock {
+  position: fixed;
+  bottom: 22px;
+  right: 28px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--mint);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 20px rgba(45, 212, 191, 0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  max-width: 440px;
+}
+
+[data-theme="light"] .floating-task-dock {
+  background: #ffffff;
+  border-color: var(--mint);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12), 0 0 16px rgba(13, 148, 136, 0.15);
+}
+
+.task-dock-indicator {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.dock-ping-circle {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--mint);
+  opacity: 0.75;
+  animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.dock-pulse-core {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
+}
+
+.task-dock-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 220px;
+}
+
+.task-dock-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.task-dock-title {
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.task-dock-timer {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  color: var(--mint);
+}
+
+.task-dock-detail {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 260px;
+}
+
+.task-dock-progress-track {
+  width: 100%;
+  height: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.task-dock-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--mint), #38bdf8);
+  border-radius: var(--radius-pill);
+  transition: width 300ms ease;
+}
+
+.task-dock-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.task-dock-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.task-dock-action-btn.primary {
+  background: var(--mint);
+  color: #030712;
+  border-color: transparent;
+}
+
+.task-dock-action-btn.primary:hover {
+  opacity: 0.9;
+}
+
+.task-dock-minimize-btn {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.task-dock-minimize-btn:hover {
+  color: var(--text);
+}
+
+.floating-task-dock.minimized {
+  padding: 8px 12px;
+}
+
+.task-dock-minimized-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Responsive adjustments for Terminal Header & Drawers */
+@media (max-width: 1240px) {
+  .terminal-market-pulse {
+    display: none;
+  }
+  .context-drawer {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .mobile-menu-btn {
+    display: flex;
+  }
+  .terminal-search-wrapper {
+    display: none;
+  }
+  .terminal-header {
+    padding: 0 14px;
+  }
+  .floating-task-dock {
+    bottom: 14px;
+    right: 14px;
+    max-width: calc(100vw - 28px);
+  }
+}
+
+.workspace-container {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  position: relative;
+  min-height: calc(100vh - 56px);
+}
+
+.workspace-view-content {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}

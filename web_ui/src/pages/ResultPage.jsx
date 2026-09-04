@@ -100,59 +100,69 @@ export default function ResultPage({ job, onReset, historical = false, onBackHis
           <ExportDropdown job={job} onShowToast={onShowToast} />
         </div>
       </div>
+
       {result ? <DecisionHero result={result} /> : null}
-      {result?.execution_levels ? (
-        <ExecutionLevelsCard
-          ticker={job?.ticker}
-          levels={result.execution_levels}
-          decision={result.display_decision}
-          onShowToast={onShowToast}
-        />
-      ) : null}
-      <div className="result-grid">
-        <section className="report-panel">
-          <div className="tabs" role="tablist" aria-label="Sections du rapport">
-            {TAB_ITEMS.map(([id, label, Icon]) => {
-              const active = tab === id;
-              return (
-                <button
-                  key={id}
-                  className={active ? "active" : ""}
-                  onClick={() => setTab(id)}
-                  role="tab"
-                  aria-selected={active}
+
+      {/* Modern Workspace Layout: Main Content + Sticky Execution & Risk Sidebar */}
+      <div className="workspace-layout">
+        <div className="workspace-main">
+          <div className="result-grid">
+            <section className="report-panel">
+              <div className="tabs" role="tablist" aria-label="Sections du rapport">
+                {TAB_ITEMS.map(([id, label, Icon]) => {
+                  const active = tab === id;
+                  return (
+                    <button
+                      key={id}
+                      className={active ? "active" : ""}
+                      onClick={() => setTab(id)}
+                      role="tab"
+                      aria-selected={active}
+                    >
+                      <Icon size={18} /> {label}
+                      {active && (
+                        <motion.div
+                          layoutId="activeTabPill"
+                          className="tab-active-pill"
+                          transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {result?.reliability?.blocked ? (
+                <div className="inconsistency-banner">
+                  <AlertTriangle size={27} />
+                  <div><strong>Incohérence de prix détectée</strong><p>{result.reliability.block_reason || "Une incohérence critique a été détectée sur les prix."}</p></div>
+                  <span>Bloquant</span>
+                </div>
+              ) : null}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={tab}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
                 >
-                  <Icon size={18} /> {label}
-                  {active && (
-                    <motion.div
-                      layoutId="activeTabPill"
-                      className="tab-active-pill"
-                      transition={{ type: "spring", stiffness: 450, damping: 30 }}
-                    />
-                  )}
-                </button>
-              );
-            })}
+                  <ReportContent job={job} result={result} tab={tab} onShowToast={onShowToast} />
+                </motion.div>
+              </AnimatePresence>
+            </section>
           </div>
-          {result?.reliability?.blocked ? (
-            <div className="inconsistency-banner">
-              <AlertTriangle size={27} />
-              <div><strong>Incohérence de prix détectée</strong><p>{result.reliability.block_reason || "Une incohérence critique a été détectée sur les prix."}</p></div>
-              <span>Bloquant</span>
-            </div>
-          ) : null}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={tab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-            >
-              <ReportContent job={job} result={result} tab={tab} onShowToast={onShowToast} />
-            </motion.div>
-          </AnimatePresence>
-        </section>
+        </div>
+
+        {result?.execution_levels ? (
+          <aside className="workspace-sidebar" aria-label="Volet de dimensionnement et d'exécution">
+            <ExecutionLevelsCard
+              ticker={job?.ticker}
+              levels={result.execution_levels}
+              decision={result.display_decision}
+              onShowToast={onShowToast}
+            />
+          </aside>
+        ) : null}
       </div>
 
       {/* Printable Institutional PDF Memo (Active during window.print()) */}

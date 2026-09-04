@@ -17,6 +17,9 @@ import { useScanJob } from "./hooks/useScanJob.js";
 // Layout Components
 import Sidebar from "./components/layout/Sidebar.jsx";
 import Topbar from "./components/layout/Topbar.jsx";
+import TerminalHeader from "./components/layout/TerminalHeader.jsx";
+import WorkspaceContextDrawer from "./components/layout/WorkspaceContextDrawer.jsx";
+import BackgroundTasksDock from "./components/layout/BackgroundTasksDock.jsx";
 import PipelineGuidePopover from "./components/layout/PipelineGuidePopover.jsx";
 import GlobalDisclaimerPopup from "./components/layout/GlobalDisclaimerPopup.jsx";
 
@@ -137,7 +140,12 @@ export default function App() {
     onComplete: () => loadHistory(),
   });
 
-  const { addToWatchlist: addWatchlist } = useWatchlist();
+  const { watchlist, addToWatchlist: addWatchlist } = useWatchlist();
+
+  const [contextDrawerOpen, setContextDrawerOpen] = useState(() => {
+    const saved = typeof window !== "undefined" && window.localStorage ? localStorage.getItem("tradingagents_context_drawer") : null;
+    return saved !== null ? saved === "true" : true;
+  });
 
   const activeModel = useMemo(() => status.active_model || status.models?.[0]?.name || "Modèle non détecté", [status]);
 
@@ -365,6 +373,19 @@ export default function App() {
     }
   };
 
+  const handleGlobalSelectTicker = useCallback((selectedTicker) => {
+    const up = (selectedTicker || "").trim().toUpperCase();
+    if (!up) return;
+    setForm((f) => ({ ...f, ticker: up }));
+    const existing = history.find((h) => (h.ticker || "").toUpperCase() === up);
+    if (existing && existing.id) {
+      openHistory(existing);
+    } else {
+      setJob(null);
+      navigate("analysis", { ticker: up });
+    }
+  }, [history, setJob]);
+
   const handleDeleteHistoryItem = async (historyId) => {
     try {
       await api(`/api/history/${historyId}`, { method: "DELETE" });
@@ -409,7 +430,6 @@ export default function App() {
   return (
     <div className="app-shell">
       <PipelineGuidePopover />
-      <Topbar onMenu={() => setMenuOpen(true)} online={status.online} model={activeModel} />
       <Sidebar
         page={page}
         onPage={navigate}
@@ -426,9 +446,43 @@ export default function App() {
       {menuOpen ? <button className="menu-scrim" onClick={() => setMenuOpen(false)} aria-label="Fermer le menu" /> : null}
 
       <div className="content-shell">
-        <AnimatePresence>
-          {showUnitBanner || showScanBanner ? (
-            <div className="global-live-banner-wrap">
+        <TerminalHeader
+          onMenu={() => setMenuOpen(true)}
+          online={status.online}
+          model={activeModel}
+          provider={status.provider_name || "LLM"}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onSelectTicker={handleGlobalSelectTicker}
+          onExportPdf={() => window.print()}
+          hasActiveReport={Boolean(job?.result || historyJob?.result)}
+        />
+
+        <div className="workspace-container">
+          {["analysis", "history-detail", "scanner", "watchlist", "compare"].includes(page) ? (
+            <WorkspaceContextDrawer
+              currentTicker={job?.ticker || form.ticker}
+              history={history}
+              watchlist={watchlist}
+              scanResults={scanJob?.candidates || []}
+              onSelectTicker={handleGlobalSelectTicker}
+              onOpenScanner={() => navigate("scanner")}
+              isScanning={scanActive}
+              isOpen={contextDrawerOpen}
+              onToggleOpen={() => {
+                setContextDrawerOpen((prev) => {
+                  const next = !prev;
+                  localStorage.setItem("tradingagents_context_drawer", String(next));
+                  return next;
+                });
+              }}
+            />
+          ) : null}
+
+          <div className="workspace-view-content">
+            <AnimatePresence>
+              {showUnitBanner || showScanBanner ? (
+                <div className="global-live-banner-wrap">
               {showUnitBanner ? (
                 <motion.div
                   key="unit-live-banner"
@@ -626,7 +680,18 @@ export default function App() {
             ) : null}
           </AnimatePresence>
         </Suspense>
+          </div>
+        </div>
       </div>
+
+      <BackgroundTasksDock
+        analysisActive={analysisActive}
+        scanActive={scanActive}
+        job={job}
+        scanJob={scanJob}
+        onOpenAnalysis={() => navigate("analysis", { ticker: job?.ticker })}
+        onOpenScanner={() => navigate("scanner")}
+      />
 
       <AnimatePresence>
         {toast ? (
