@@ -7,6 +7,7 @@ import {
   isPositiveDecision,
   isNegativeDecision,
   isNeutralDecision,
+  formatDateFr,
 } from "../src/decisionUtils.js";
 
 test("getDecisionTone classifies correctly", () => {
@@ -70,4 +71,14 @@ test("getDecisionStrength returns exact tier and positive tone for ACCUMULER", (
   assert.equal(overweight.level, 2);
   assert.equal(overweight.tier, "strategic");
   assert.equal(overweight.tone, "positive");
+});
+
+test("formatDateFr formats dates to standard French DD/MM/YYYY", () => {
+  assert.equal(formatDateFr("2026-08-27"), "27/08/2026");
+  assert.equal(formatDateFr("2026-01-05"), "05/01/2026");
+  assert.equal(formatDateFr("2026-12-31T14:30:00Z"), "31/12/2026");
+  assert.equal(formatDateFr(null), "—");
+  assert.equal(formatDateFr(undefined), "—");
+  assert.equal(formatDateFr("—"), "—");
+  assert.equal(formatDateFr(""), "—");
 });

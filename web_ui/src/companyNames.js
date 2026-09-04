@@ -108,6 +108,27 @@ export const COMPANY_NAMES = {
     "exchange": "NYSE",
     "flag": "🇺🇸"
   },
+  "NIO": {
+    "name": "NIO Inc.",
+    "short": "NIO",
+    "sector": "Véhicules Électriques & Batteries",
+    "exchange": "NYSE",
+    "flag": "🇺🇸"
+  },
+  "RIVN": {
+    "name": "Rivian Automotive Inc.",
+    "short": "Rivian",
+    "sector": "Véhicules Électriques & Pickups",
+    "exchange": "NASDAQ",
+    "flag": "🇺🇸"
+  },
+  "BABA": {
+    "name": "Alibaba Group Holding",
+    "short": "Alibaba",
+    "sector": "E-Commerce & Cloud IA",
+    "exchange": "NYSE",
+    "flag": "🇺🇸"
+  },
   "ORCL": {
     "name": "Oracle Corporation",
     "short": "Oracle",
@@ -324,6 +345,41 @@ export const COMPANY_NAMES = {
     "sector": "Réseaux & CDN Sécurisé",
     "exchange": "NYSE",
     "flag": "🇺🇸"
+  },
+  "CHKP": {
+    "name": "Check Point Software Technologies",
+    "short": "Check Point",
+    "sector": "Cybersécurité Réseau & Cloud",
+    "exchange": "NASDAQ",
+    "flag": "🇺🇸"
+  },
+  "GEN": {
+    "name": "Gen Digital Inc.",
+    "short": "Gen Digital (Norton/Avast)",
+    "sector": "Cybersécurité Grand Public",
+    "exchange": "NASDAQ",
+    "flag": "🇺🇸"
+  },
+  "S": {
+    "name": "SentinelOne Inc.",
+    "short": "SentinelOne",
+    "sector": "Cybersécurité IA Autonome (XDR)",
+    "exchange": "NYSE",
+    "flag": "🇺🇸"
+  },
+  "TMICY": {
+    "name": "Trend Micro Inc.",
+    "short": "Trend Micro",
+    "sector": "Cybersécurité Hybride & Endpoint",
+    "exchange": "OTC / Tokyo",
+    "flag": "🇯🇵"
+  },
+  "4704.T": {
+    "name": "Trend Micro Inc.",
+    "short": "Trend Micro",
+    "sector": "Cybersécurité Hybride & Endpoint",
+    "exchange": "TSE (Tokyo)",
+    "flag": "🇯🇵"
   },
   "MDB": {
     "name": "MongoDB Inc.",
@@ -2028,3 +2084,33 @@ export function searchStocks(query, limit = 8) {
 
   return results.slice(0, limit);
 }
+
+/**
+ * Retourne le symbole monétaire canonique (€, $, £, CHF, C$, ¥)
+ * basé sur le suffixe de place boursière ou les métadonnées.
+ */
+export function getCurrencySymbol(ticker = "") {
+  if (!ticker) return "$";
+  const sym = String(ticker).toUpperCase().trim();
+  if (
+    sym.endsWith(".PA") ||
+    sym.endsWith(".DE") ||
+    sym.endsWith(".AS") ||
+    sym.endsWith(".MC") ||
+    sym.endsWith(".MI") ||
+    sym.endsWith(".BR") ||
+    sym.endsWith(".VI") ||
+    sym.endsWith(".FP") ||
+    sym.endsWith(".F") ||
+    sym.endsWith(".NX") ||
+    sym.endsWith(".IR")
+  ) {
+    return "€";
+  }
+  if (sym.endsWith(".L") || sym.endsWith(".IL")) return "£";
+  if (sym.endsWith(".TO") || sym.endsWith(".V")) return "C$";
+  if (sym.endsWith(".SW") || sym.endsWith(".CH")) return "CHF";
+  if (sym.endsWith(".T") || sym.endsWith(".TYO")) return "¥";
+  return "$";
+}
+

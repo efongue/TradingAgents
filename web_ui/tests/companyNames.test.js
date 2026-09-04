@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getCompanyName, getCompanySector, searchStocks } from "../src/companyNames.js";
+import { getCompanyName, getCompanySector, searchStocks, getCurrencySymbol } from "../src/companyNames.js";
 
 test("getCompanyName resolves French CAC 40 tickers correctly", () => {
   assert.equal(getCompanyName("DSY.PA", true), "Dassault Systèmes");
@@ -53,3 +53,24 @@ test("searchStocks returns matching stocks for tickers and company names", () =>
   const nvdMatches = searchStocks("NVD");
   assert.ok(nvdMatches.some((s) => s.ticker === "NVDA"), "NVD should resolve to NVDA");
 });
+
+test("getCompanyName handles raw international tickers gracefully", () => {
+  assert.equal(getCompanyName("ASML.AS", true), "ASML"); // Resolves to company short name
+  assert.equal(getCompanyName("NOVO-B.CO", true), ""); // Unlisted returns empty string as intended
+  assert.equal(getCompanyName("2330.TW", true), ""); // Unlisted returns empty string as intended
+});
+
+test("getCurrencySymbol resolves currency symbols for multiple international exchanges correctly", () => {
+  assert.equal(getCurrencySymbol("NVDA"), "$");
+  assert.equal(getCurrencySymbol("AAPL"), "$");
+  assert.equal(getCurrencySymbol("MC.PA"), "€");
+  assert.equal(getCurrencySymbol("OR.PA"), "€");
+  assert.equal(getCurrencySymbol("SAP.DE"), "€");
+  assert.equal(getCurrencySymbol("ASML.AS"), "€");
+  assert.equal(getCurrencySymbol("SXR8.DE"), "€");
+  assert.equal(getCurrencySymbol("AZN.L"), "£");
+  assert.equal(getCurrencySymbol("RY.TO"), "C$");
+  assert.equal(getCurrencySymbol("NESN.SW"), "CHF");
+});
+
+

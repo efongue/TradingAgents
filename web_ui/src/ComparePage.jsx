@@ -1,18 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  AlertTriangle,
-  ArrowRight,
-  ArrowUpRight,
-  ArrowDownRight,
-  BarChart3,
   BookOpen,
-  CheckCircle2,
   ExternalLink,
-  Layers,
   MessageSquareText,
-  Minus,
   Newspaper,
+  Play,
   Plus,
   Scale,
   ShieldCheck,
@@ -21,7 +14,8 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { getCompanyName } from "./companyNames.js";
+import { api } from "./api.js";
+import { getCompanyName, getCurrencySymbol } from "./companyNames.js";
 import StockSearchInput from "./StockSearchInput.jsx";
 import { getDecisionTone, formatDecisionLabel, getDecisionStrength } from "./decisionUtils.js";
 import DecisionBadge from "./DecisionBadge.jsx";
@@ -31,7 +25,57 @@ function formatNumber(value, digits = 2) {
   return Number(value).toLocaleString("fr-FR", { maximumFractionDigits: digits });
 }
 
-export default function ComparePage({ history = [], initialTickers, onOpenAnalysis }) {
+function extractAnalystPillars(reports = {}, decisionTone = "neutral") {
+  const isPos = decisionTone === "positive";
+  const isNeg = decisionTone === "negative";
+
+  const analyze = (text, fallbackStance) => {
+    if (!text || typeof text !== "string") return { stance: fallbackStance, tone: decisionTone };
+    const lower = text.toLowerCase();
+    const bull = (lower.match(/\b(bullish|haussier|achat|acheter|surpondérer|surperformance|croissance|favorable|opportunité|rebond|accumuler|solide|surperformer|positif)\b/gi) || []).length;
+    const bear = (lower.match(/\b(bearish|baissier|vente|vendre|sous-pondérer|sous-performance|risque|prudence|dégradation|fragile|surévalué|alléger|négatif)\b/gi) || []).length;
+    if (bull > bear + 1) return { stance: "Haussier", tone: "positive" };
+    if (bear > bull + 1) return { stance: "Prudent", tone: "negative" };
+    return { stance: "Neutre", tone: "neutral" };
+  };
+
+  const market = analyze(reports.market, isPos ? "Haussier" : isNeg ? "Prudent" : "Neutre");
+  const fundamentals = analyze(reports.fundamentals, isPos ? "Solide" : isNeg ? "Fragile" : "Neutre");
+  const news = analyze(reports.news, isPos ? "Favorable" : isNeg ? "Défavorable" : "Neutre");
+  const social = analyze(reports.social, isPos ? "Positif" : isNeg ? "Prudent" : "Neutre");
+
+  return {
+    market: { label: market.stance, tone: market.tone },
+    fundamentals: { label: fundamentals.stance === "Haussier" ? "Solide" : fundamentals.stance === "Prudent" ? "Fragile" : "Équilibré", tone: fundamentals.tone },
+    news: { label: news.stance === "Haussier" ? "Favorable" : news.stance === "Prudent" ? "Prudence" : "Neutre", tone: news.tone },
+    social: { label: social.stance === "Haussier" ? "Positif" : social.stance === "Prudent" ? "Mitigé" : "Neutre", tone: social.tone },
+  };
+}
+
+function extractCleanThesis(summary, fallback = "Synthèse multi-agents validée.") {
+  if (!summary || typeof summary !== "string") return fallback;
+  let clean = summary
+    .replace(/^#+.*$/gm, " ")
+    .replace(/\*\*(?:Rating|Executive Summary|Investment Thesis|Time Horizon|Recommendation|Rationale|Strategic Actions|Price Target)\*\*\s*:\s*/gi, " ")
+    .replace(/(?:Rating|Recommendation)\s*:\s*(?:Buy|Sell|Hold|Underweight|Overweight|Neutral|Achat|Vente|Conserver|Sous-pondérer|Surpondérer)\s*/gi, " ")
+    .replace(/FINAL TRANSACTION PROPOSAL\s*:\s*[A-Z\s_-]+/gi, " ")
+    .replace(/Date d'analyse\s*:\s*[^.\n]+/gi, " ")
+    .replace(/Société\s*:\s*[^.\n]+/gi, " ")
+    .replace(/\*\*/g, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  clean = clean.replace(/^(?:Underweight|Overweight|Hold|Buy|Sell|Neutral|Strong Buy|Strong Sell)\s+/i, "");
+
+  const sentences = clean.split(/(?<=[.!?])\s+/).filter((s) => s.length > 25);
+  const first = (sentences[0] || clean).replace(/^[#:\s-]+/, "").trim();
+  const second = sentences[1] ? ` ${sentences[1].replace(/^[#:\s-]+/, "").trim()}` : "";
+  const combined = `${first}${second}`.trim();
+  return combined.length > 175 ? `${combined.slice(0, 175)}...` : combined;
+}
+
+export default function ComparePage({ history = [], initialTickers, onOpenAnalysis, onAnalyzeTicker }) {
   const defaultTickers = useMemo(() => {
     if (initialTickers && initialTickers.length) return initialTickers;
     const fromHistory = Array.from(new Set((history || []).map((h) => h.ticker).filter(Boolean)));
@@ -40,17 +84,40 @@ export default function ComparePage({ history = [], initialTickers, onOpenAnalys
 
   const [selectedTickers, setSelectedTickers] = useState(defaultTickers);
   const [customInput, setCustomInput] = useState("");
+  const [loadedResults, setLoadedResults] = useState({});
+
+  // Auto-fetch full result for selected tickers that have an id in history
+  useEffect(() => {
+    selectedTickers.forEach((ticker) => {
+      const histItem = (history || []).find((h) => (h?.ticker || "").toUpperCase() === ticker.toUpperCase());
+      if (histItem?.id && !loadedResults[histItem.id]) {
+        api(`/api/reports/${histItem.id}/result`)
+          .then((res) => {
+            setLoadedResults((prev) => ({ ...prev, [histItem.id]: res }));
+          })
+          .catch(() => {});
+      }
+    });
+  }, [selectedTickers, history, loadedResults]);
 
   // Build lookup of available analyses purely from history items
   const analysisCatalog = useMemo(() => {
     const map = {};
     (history || []).forEach((item) => {
-      if (item?.ticker && item?.result) {
-        map[item.ticker] = item;
+      if (item?.ticker) {
+        const fullResult = loadedResults[item.id] || item.result;
+        map[item.ticker.toUpperCase()] = {
+          ...item,
+          result: fullResult || {
+            display_decision: item.display_decision || item.raw_decision,
+            snapshot: { close: item.close },
+            summary: item.summary,
+          },
+        };
       }
     });
     return map;
-  }, [history]);
+  }, [history, loadedResults]);
 
   const activeAnalyses = useMemo(() => {
     return selectedTickers
@@ -158,24 +225,107 @@ export default function ComparePage({ history = [], initialTickers, onOpenAnalys
         </div>
       </section>
 
-      {activeAnalyses.length === 0 ? (
-        <div className="empty-state">
-          <Scale size={36} />
-          <strong>Aucun titre sélectionné</strong>
-          <span>Choisissez au moins 2 actions ci-dessus pour lancer la comparaison face-à-face.</span>
+      {selectedTickers.length === 0 ? (
+        <div className="empty-state compare-empty-state">
+          <Scale size={38} style={{ color: "var(--mint)" }} />
+          <strong style={{ fontSize: "16px", marginTop: "4px" }}>Aucun titre sélectionné</strong>
+          <span style={{ maxWidth: "480px", textAlign: "center", lineHeight: "1.5" }}>
+            Choisissez au moins 2 actions ci-dessus pour lancer la comparaison face-à-face, ou chargez un univers type en un clic :
+          </span>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "center", marginTop: "12px" }}>
+            <button
+              type="button"
+              className="chip-button"
+              onClick={() => setSelectedTickers(["NVDA", "MSFT", "AAPL"])}
+            >
+              ✨ Leaders IA (NVDA vs MSFT vs AAPL)
+            </button>
+            <button
+              type="button"
+              className="chip-button"
+              onClick={() => setSelectedTickers(["DSY.PA", "CAP.PA", "SU.PA"])}
+            >
+              🇫🇷 CAC 40 (DSY.PA vs CAP.PA vs SU.PA)
+            </button>
+            <button
+              type="button"
+              className="chip-button"
+              onClick={() => setSelectedTickers(["SPY", "URTH"])}
+            >
+              🌍 Indices & ETF (SPY vs URTH)
+            </button>
+          </div>
         </div>
       ) : (
-        <div className={`compare-grid columns-${activeAnalyses.length}`}>
-          {activeAnalyses.map((job) => {
+        <div className={`compare-grid columns-${selectedTickers.length}`}>
+          {selectedTickers.map((ticker) => {
+            const job = analysisCatalog[ticker.toUpperCase()];
+
+            if (!job) {
+              return (
+                <motion.article
+                  key={ticker}
+                  className="compare-card compare-card-placeholder tone-neutral"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                >
+                  <div className="compare-card-header">
+                    <div>
+                      <span className="compare-badge pending">NON ANALYSÉ</span>
+                      <h2>{ticker}</h2>
+                      {getCompanyName(ticker) ? (
+                        <span
+                          className="compare-company-name"
+                          style={{
+                            fontSize: "12px",
+                            color: "var(--muted)",
+                            fontWeight: "500",
+                            display: "block",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          {getCompanyName(ticker)}
+                        </span>
+                      ) : null}
+                      <span className="compare-price muted-text">Données en attente</span>
+                    </div>
+                    <span className="decision-pill tone-neutral" style={{ opacity: 0.7 }}>
+                      À analyser
+                    </span>
+                  </div>
+
+                  <div className="compare-placeholder-body">
+                    <div className="placeholder-icon-wrap">
+                      <Scale size={32} />
+                    </div>
+                    <strong>Aucune analyse disponible pour {ticker}</strong>
+                    <p>
+                      Lancez l'arbitrage multi-agents pour débloquer le consensus, les signaux contradictoires et le cadrage de risque de cette action.
+                    </p>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={() => (onAnalyzeTicker ? onAnalyzeTicker(ticker) : onOpenAnalysis({ ticker }))}
+                      style={{ marginTop: "16px", width: "100%", justifyContent: "center" }}
+                    >
+                      <Play size={15} fill="currentColor" /> Lancer l'analyse de {ticker}
+                    </button>
+                  </div>
+                </motion.article>
+              );
+            }
+
             const result = job.result || {};
             const snapshot = result.snapshot || {};
-            const consensus = result.consensus || { bullish: 70, neutral: 20, bearish: 10 };
-            const decision = result.display_decision || "ATTENDRE";
+            const decision = result.display_decision || job.display_decision || job.raw_decision || "ATTENDRE";
             const tone = getDecisionTone(decision);
             const strength = getDecisionStrength(decision);
-            const scores = result.analyst_scores || {};
-            const catalysts = result.catalysts || [];
-            const riskVeto = result.risk_veto || {};
+            const reports = result.reports || {};
+            const pillars = extractAnalystPillars(reports, tone);
+            const thesis = extractCleanThesis(result.summary || job.summary, "Synthèse multi-agents validée sans incohérence.");
+            const price = snapshot.close || result.reliability?.verified_close || job.close;
+            const currencySymbol = getCurrencySymbol(job.ticker);
 
             return (
               <motion.article
@@ -194,67 +344,55 @@ export default function ComparePage({ history = [], initialTickers, onOpenAnalys
                         {getCompanyName(job.ticker)}
                       </span>
                     ) : null}
-                    <span className="compare-price">{formatNumber(snapshot.close || result.reliability?.verified_close)} $</span>
+                    <span className="compare-price">{formatNumber(price)} {currencySymbol}</span>
                   </div>
                   <DecisionBadge decision={decision} size="md" />
                 </div>
 
-                {/* Consensus breakdown */}
-                <div className="compare-section">
-                  <span className="compare-section-title"><Sparkles size={15} /> Consensus Multi-Agents</span>
-                  <div className="consensus-bar-track" aria-label={`Consensus : ${consensus.bullish}% haussier`}>
-                    <div className="consensus-fill bullish" style={{ width: `${consensus.bullish || 70}%` }} title={`Haussier: ${consensus.bullish || 70}%`} />
-                    <div className="consensus-fill neutral" style={{ width: `${consensus.neutral || 20}%` }} title={`Neutre: ${consensus.neutral || 20}%`} />
-                    <div className="consensus-fill bearish" style={{ width: `${consensus.bearish || 10}%` }} title={`Prudent: ${consensus.bearish || 10}%`} />
-                  </div>
-                  <div className="consensus-legend">
-                    <span className="bullish-label"><i /> {consensus.bullish || 70}% Haussier</span>
-                    <span className="neutral-label"><i /> {consensus.neutral || 20}% Neutre</span>
-                    <span className="bearish-label"><i /> {consensus.bearish || 10}% Prudent</span>
-                  </div>
-                  {consensus.verdict ? <p className="consensus-verdict">{consensus.verdict}</p> : null}
-                </div>
-
-                {/* 4 Pillars */}
+                {/* 4 Pillars with REAL dynamic stances */}
                 <div className="compare-section">
                   <span className="compare-section-title"><Users size={15} /> Piliers d’Analystes</span>
                   <div className="compare-pillars-grid">
                     <div className="compare-pillar-item">
                       <div><TrendingUp size={14} /> <strong>Marché</strong></div>
-                      <span>{scores.market?.stance || "Haussier"} ({scores.market?.score || 85}/100)</span>
+                      <span className={`compare-pillar-badge ${pillars.market.tone}`}>{pillars.market.label}</span>
                     </div>
                     <div className="compare-pillar-item">
                       <div><BookOpen size={14} /> <strong>Fondamentaux</strong></div>
-                      <span>{scores.fundamentals?.stance || "Solide"} ({scores.fundamentals?.score || 88}/100)</span>
+                      <span className={`compare-pillar-badge ${pillars.fundamentals.tone}`}>{pillars.fundamentals.label}</span>
                     </div>
                     <div className="compare-pillar-item">
                       <div><Newspaper size={14} /> <strong>Actualités</strong></div>
-                      <span>{scores.news?.stance || "Favorable"} ({scores.news?.score || 80}/100)</span>
+                      <span className={`compare-pillar-badge ${pillars.news.tone}`}>{pillars.news.label}</span>
                     </div>
                     <div className="compare-pillar-item">
                       <div><MessageSquareText size={14} /> <strong>Social</strong></div>
-                      <span>{scores.social?.stance || "Positif"} ({scores.social?.score || 80}/100)</span>
+                      <span className={`compare-pillar-badge ${pillars.social.tone}`}>{pillars.social.label}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Catalysts & Risks */}
+                {/* Thèse & Objectif d'allocation */}
                 <div className="compare-section">
-                  <span className="compare-section-title"><CheckCircle2 size={15} /> Catalyseurs Clés</span>
-                  {catalysts.length ? (
-                    <ul className="compare-bullet-list">
-                      {catalysts.map((cat, i) => <li key={i}>{cat}</li>)}
-                    </ul>
-                  ) : (
-                    <p className="compare-fallback-text">{result.summary?.slice(0, 150)}...</p>
-                  )}
-                </div>
-
-                <div className="compare-section">
-                  <span className="compare-section-title"><ShieldCheck size={15} /> Évaluation Risque & Veto</span>
-                  <div className="compare-risk-box">
-                    <strong>Niveau de risque : {riskVeto.level || "Modéré"}</strong>
-                    <p>{riskVeto.summary || "Contrôles locaux d’incohérence validés."}</p>
+                  <span className="compare-section-title"><Sparkles size={15} /> Thèse & Objectif d’allocation</span>
+                  <div className="compare-thesis-box">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
+                      <span
+                        className="history-model-tag"
+                        style={{
+                          background: "rgba(45, 212, 191, 0.12)",
+                          color: "var(--mint)",
+                          border: "1px solid rgba(45, 212, 191, 0.25)",
+                          fontWeight: "600",
+                        }}
+                      >
+                        {strength.tag}
+                      </span>
+                      {strength.description ? (
+                        <small style={{ color: "var(--muted)", fontSize: "11px" }}>{strength.description}</small>
+                      ) : null}
+                    </div>
+                    <p style={{ margin: 0, lineHeight: "1.5" }}>{thesis}</p>
                   </div>
                 </div>
 
@@ -271,6 +409,33 @@ export default function ComparePage({ history = [], initialTickers, onOpenAnalys
               </motion.article>
             );
           })}
+          {selectedTickers.length === 1 ? (
+            <div
+              className="compare-card compare-card-placeholder tone-neutral"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                textAlign: "center",
+                minHeight: "450px",
+                borderStyle: "dashed",
+              }}
+            >
+              <Plus size={32} style={{ color: "var(--mint)", marginBottom: "8px" }} />
+              <strong style={{ fontSize: "15px" }}>Ajoutez un second titre</strong>
+              <p style={{ color: "var(--muted)", fontSize: "12px", maxWidth: "260px", margin: "6px 0 16px" }}>
+                Confrontez {selectedTickers[0]} à un pair ou un indice de référence.
+              </p>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
+                {availableSuggestions.slice(0, 3).map((sym) => (
+                  <button key={sym} type="button" className="chip-button" onClick={() => addTicker(sym)}>
+                    + {sym}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
     </main>

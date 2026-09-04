@@ -159,3 +159,22 @@ export function getDecisionStrength(decision) {
     description: "Position à conserver, attendre un catalyseur",
   };
 }
+
+/**
+ * Formate une date (ISO, YYYY-MM-DD ou Date) au standard français (JJ/MM/AAAA).
+ */
+export function formatDateFr(dateValue) {
+  if (!dateValue || dateValue === "—") return "—";
+  try {
+    const str = String(dateValue).trim();
+    const datePart = str.split("T")[0];
+    const parts = datePart.split("-");
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  } catch {
+    // fallback
+  }
+  return String(dateValue);
+}
+
