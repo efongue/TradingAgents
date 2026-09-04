@@ -14,6 +14,7 @@ from web_ui.server import (
     save_history,
     load_historical_job,
     new_analysis_job,
+    compute_portfolio_performance,
 )
 
 
@@ -127,3 +128,22 @@ class ServerRoutesAndMetricsTests(TestCase):
         for path in test_paths:
             parsed = urlparse(path)
             self.assertTrue(parsed.path in {"/", "/api/status", "/api/capabilities", "/api/scanner/universes"})
+
+    def test_compute_portfolio_performance_returns_enriched_metrics(self):
+        perf = compute_portfolio_performance(force_refresh=False)
+        self.assertIn("summary", perf)
+        self.assertIn("items", perf)
+        summary = perf["summary"]
+        self.assertGreater(summary["total_trades"], 0)
+        self.assertGreater(summary["evaluated_signals"], 0)
+        self.assertGreaterEqual(summary["win_rate"], 50.0)
+        self.assertIn("benchmark", summary)
+
+        # Verify that items have enriched price data and realistic returns
+        items = perf["items"]
+        non_zero_returns = [it for it in items if it["return_percent"] != 0.0]
+        self.assertGreater(len(non_zero_returns), 0, "Current prices must differ from entry prices for active trades")
+        valid_statuses = {"win", "loss", "protected", "miss", "neutral"}
+        for it in items:
+            self.assertIn(it["status"], valid_statuses)
+

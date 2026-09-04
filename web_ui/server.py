@@ -46,6 +46,7 @@ from langchain_core.callbacks import BaseCallbackHandler  # noqa: E402
 from tradingagents.dataflows.market_data_validator import (  # noqa: E402
     build_verified_market_snapshot,
 )
+from tradingagents.dataflows.stockstats_utils import load_ohlcv  # noqa: E402
 from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
 from tradingagents.graph.analyst_execution import ANALYST_NODE_SPECS  # noqa: E402
 from tradingagents.graph.checkpointer import checkpoint_step  # noqa: E402
@@ -1701,10 +1702,10 @@ def compute_execution_levels(raw_decision: str, snapshot: dict, reports: dict | 
 _PERF_CACHE = {"timestamp": 0, "data": None}
 
 
-def compute_portfolio_performance() -> dict:
+def compute_portfolio_performance(force_refresh: bool = False) -> dict:
     """Compute real-world retrospective track record comparing historical calls vs live market & S&P 500."""
     now = time.time()
-    if _PERF_CACHE["data"] and (now - _PERF_CACHE["timestamp"]) < 60:
+    if not force_refresh and _PERF_CACHE["data"] and (now - _PERF_CACHE["timestamp"]) < 180:
         return _PERF_CACHE["data"]
 
     history = load_history_items()
@@ -1729,21 +1730,28 @@ def compute_portfolio_performance() -> dict:
     today = date.today()
 
     sp500_df = None
-    try:
-        sp500_df = load_ohlcv("^GSPC", today)
-    except Exception:
-        pass
-
-    sp500_current = float(sp500_df["Close"].iloc[-1]) if sp500_df is not None and not sp500_df.empty else None
-
+    sp500_current = None
     ticker_current_prices = {}
-    for ticker in tickers:
+
+    def _fetch_series(symbol: str):
         try:
-            df = load_ohlcv(ticker, today)
+            df = load_ohlcv(symbol, today)
             if df is not None and not df.empty:
-                ticker_current_prices[ticker] = float(df["Close"].iloc[-1])
+                return symbol, df, float(df["Close"].iloc[-1])
         except Exception:
-            ticker_current_prices[ticker] = None
+            pass
+        return symbol, None, None
+
+    targets = list(tickers)
+    with ThreadPoolExecutor(max_workers=min(12, len(targets) + 1)) as executor:
+        futures = {executor.submit(_fetch_series, sym): sym for sym in targets + ["^GSPC"]}
+        for future in as_completed(futures):
+            sym, df, price = future.result()
+            if sym == "^GSPC":
+                sp500_df = df
+                sp500_current = price
+            else:
+                ticker_current_prices[sym] = price
 
     enriched_items = []
     bullish_returns = []
@@ -1767,7 +1775,8 @@ def compute_portfolio_performance() -> dict:
 
         sp500_entry = None
         if sp500_df is not None and not sp500_df.empty:
-            matching = sp500_df[sp500_df["Date"] <= entry_date]
+            clean_date = str(entry_date).split("T")[0] if entry_date else ""
+            matching = sp500_df[sp500_df["Date"] <= clean_date] if clean_date else sp500_df
             if not matching.empty:
                 sp500_entry = float(matching["Close"].iloc[-1])
             else:
@@ -1781,8 +1790,8 @@ def compute_portfolio_performance() -> dict:
         alpha_pct = round(return_pct - sp500_return_pct, 2)
         alphas.append(alpha_pct)
 
-        is_bullish = any(b in decision for b in ("ACHAT", "BUY", "ACCUMULER", "OVERWEIGHT"))
-        is_bearish = any(s in decision for s in ("SOUS-PONDÉRER", "UNDERWEIGHT", "VENDRE", "SELL", "ALÉGER", "ALLEGER"))
+        is_bullish = any(b in decision for b in ("ACHAT", "ACHET", "BUY", "ACCUMUL", "RENFORC", "SURPOND", "OVERWEIGHT", "OUTPERFORM"))
+        is_bearish = any(s in decision for s in ("SOUS-POND", "UNDERWEIGHT", "UNDERPERFORM", "VEND", "VENTE", "SELL", "ALÉG", "ALLEG", "RÉDUIRE", "REDUIRE"))
 
         if is_bullish:
             if return_pct == 0.0 and sp500_return_pct == 0.0:
@@ -1992,6 +2001,7 @@ def save_history(job: dict) -> None:
     }
     current = [item] + [entry for entry in current if entry.get("id") != item["id"]]
     HISTORY_FILE.write_text(json.dumps(current[:100], ensure_ascii=False, indent=2), encoding="utf-8")
+    _PERF_CACHE["data"] = None
 
 
 def run_analysis(job_id: str, payload: dict) -> None:
@@ -2438,7 +2448,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"items": items})
             return
         if path == "/api/performance":
-            self.send_json(compute_portfolio_performance())
+            force_refresh = parse_qs(urlparse(self.path).query).get("refresh", ["0"])[0] in ("1", "true")
+            self.send_json(compute_portfolio_performance(force_refresh=force_refresh))
             return
         if path == "/api/waitlist/stats":
             waitlist = load_waitlist()

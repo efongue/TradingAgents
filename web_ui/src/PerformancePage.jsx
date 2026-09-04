@@ -56,11 +56,12 @@ export default function PerformancePage({ onSelectAnalysis }) {
     }
   });
 
-  const fetchPerformance = async () => {
+  const fetchPerformance = async (forceRefresh = false) => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/performance");
+      const url = forceRefresh ? "/api/performance?refresh=1" : "/api/performance";
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`Erreur ${res.status} lors de la récupération des performances`);
       const json = await res.json();
       setData(json);
@@ -166,7 +167,11 @@ export default function PerformancePage({ onSelectAnalysis }) {
     const finalCapital = capital + totalPnl;
     const totalAlphaPct = totalReturnPct - avgSp500Pct;
 
-    const winningTrades = selectedList.filter((it) => it.status === "win" || it.status === "protected").length;
+    const winningTrades = selectedList.filter((it) => {
+      if (it.status === "win" || it.status === "protected") return true;
+      if (it.status === "neutral" && getEffectiveReturn(it) > 0) return true;
+      return false;
+    }).length;
     const winRate = (winningTrades / count) * 100;
 
     const sortedByPerf = [...selectedList].sort((a, b) => getEffectiveReturn(b) - getEffectiveReturn(a));
@@ -268,7 +273,7 @@ export default function PerformancePage({ onSelectAnalysis }) {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="secondary-button"
-            onClick={fetchPerformance}
+            onClick={() => fetchPerformance(true)}
             disabled={loading}
             title="Rafraîchir les cours en direct et recalculer"
           >
