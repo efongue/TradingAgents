@@ -58,7 +58,7 @@ from web_ui.screener import (  # noqa: E402
     universe_catalog,
 )
 
-HOST = "127.0.0.1"
+HOST = os.environ.get("TRADINGAGENTS_WEB_HOST", "0.0.0.0")
 PORT = int(os.environ.get("TRADINGAGENTS_WEB_PORT", "8787"))
 LLM_PROVIDER = DEFAULT_CONFIG["llm_provider"]
 LLM_ENDPOINT = str(DEFAULT_CONFIG.get("backend_url") or "").rstrip("/")
@@ -2685,7 +2685,17 @@ def main() -> None:
     if not DIST_DIR.exists():
         raise SystemExit("Interface non construite : exécutez `npm install && npm run build` dans web_ui/.")
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"TradingAgents Web : http://{HOST}:{PORT}")
+    display_host = "127.0.0.1" if HOST == "0.0.0.0" else HOST
+    print(f"TradingAgents Web (Local)  : http://{display_host}:{PORT}")
+    if HOST == "0.0.0.0":
+        try:
+            import socket
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                lan_ip = s.getsockname()[0]
+                print(f"TradingAgents Web (Mobile) : http://{lan_ip}:{PORT}")
+        except Exception:
+            pass
     try:
         server.serve_forever()
     except KeyboardInterrupt:
