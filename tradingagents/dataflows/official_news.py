@@ -9,7 +9,6 @@ without blocking an analysis.
 from __future__ import annotations
 
 import logging
-import re
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -158,6 +157,11 @@ def _parse_sec_datetime(value: str | None, fallback_date: str | None) -> datetim
     return None
 
 
+def _recent_field(recent: dict, name: str, index: int, default=""):
+    values = recent.get(name) or []
+    return values[index] if index < len(values) else default
+
+
 def get_sec_edgar_articles(
     ticker: str,
     start_date: str,
@@ -190,21 +194,18 @@ def get_sec_edgar_articles(
         if form not in _SEC_RELEVANT_FORMS:
             continue
 
-        def field(name: str, default=""):
-            values = recent.get(name) or []
-            return values[index] if index < len(values) else default
-
         pub_date = _parse_sec_datetime(
-            field("acceptanceDateTime", None),
-            field("filingDate", None),
+            _recent_field(recent, "acceptanceDateTime", index, None),
+            _recent_field(recent, "filingDate", index, None),
         )
         if not _in_news_window(pub_date, start_dt, end_dt):
             continue
 
-        accession = str(field("accessionNumber"))
-        primary_document = str(field("primaryDocument"))
-        items = str(field("items")).strip()
-        report_date = str(field("reportDate")).strip()
+        accession = str(_recent_field(recent, "accessionNumber", index))
+        primary_document = str(_recent_field(recent, "primaryDocument", index))
+        items = str(_recent_field(recent, "items", index)).strip()
+        report_date = str(_recent_field(recent, "reportDate", index)).strip()
+        filing_date = str(_recent_field(recent, "filingDate", index)).strip()
 
         detail_bits = []
         if items:
@@ -216,7 +217,7 @@ def get_sec_edgar_articles(
         title = f"SEC {form} filing{detail}"
         summary = (
             f"Official SEC EDGAR filing by {payload.get('name') or ticker}. "
-            f"Filed {field('filingDate')}."
+            f"Filed {filing_date}."
         )
         link = (
             _sec_filing_url(cik, accession, primary_document)
