@@ -15,11 +15,12 @@ def get_news(
     """
     Retrieve news data for a given ticker symbol.
 
-    When Yahoo Finance is the selected news vendor, enrich ticker news with
-    official regulatory sources (SEC EDGAR for US issuers and Euronext company
-    press releases for Euronext-listed issuers), then deduplicate the merged
-    stream before returning it to the analyst. Other configured vendors retain
-    their existing routing behavior.
+    When Yahoo Finance is the explicitly selected news vendor, enrich ticker
+    news with official regulatory sources (SEC EDGAR for US issuers and Euronext
+    company press releases for Euronext-listed issuers), then deduplicate the
+    merged stream before returning it to the analyst. Other configurations,
+    including explicit multi-vendor fallback chains, retain the existing router
+    semantics.
 
     Args:
         ticker (str): Ticker symbol
@@ -28,9 +29,8 @@ def get_news(
     Returns:
         str: A formatted string containing news data
     """
-    vendor_config = get_vendor("news_data", "get_news")
-    primary_vendor = vendor_config.split(",", 1)[0].strip()
-    if primary_vendor in {"yfinance", "default", ""}:
+    vendor_config = get_vendor("news_data", "get_news").strip()
+    if vendor_config == "yfinance":
         return get_news_multisource(ticker, start_date, end_date)
     return route_to_vendor("get_news", ticker, start_date, end_date)
 
